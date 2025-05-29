@@ -1,0 +1,143 @@
+{
+  "productFamilies": [
+    {
+      "name": "Nitro PDF",
+      "description": "Professional PDF editing and creation tools",
+      "plans": [
+        {
+          "name": "Nitro PDF Standard",
+          "description": "Essential PDF tools for everyday business needs",
+          "features": [
+            "Edit and create PDFs",
+            "Convert to/from PDF",
+            "Basic e-signatures"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 129 },
+            { "minSeats": 10, "price": 119 },
+            { "minSeats": 50, "price": 109 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 119 },
+            { "minSeats": 10, "price": 109 },
+            { "minSeats": 50, "price": 99 }
+          ]
+        },
+        {
+          "name": "Nitro PDF Plus",
+          "description": "Advanced PDF features for professionals",
+          "features": [
+            "All Standard features",
+            "Advanced editing tools",
+            "Batch processing",
+            "OCR technology"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 179 },
+            { "minSeats": 10, "price": 169 },
+            { "minSeats": 50, "price": 159 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 169 },
+            { "minSeats": 10, "price": 159 },
+            { "minSeats": 50, "price": 149 }
+          ]
+        },
+        {
+          "name": "Nitro PDF Enterprise",
+          "description": "Enterprise-grade PDF solutions",
+          "features": [
+            "All Plus features",
+            "Enterprise security",
+            "Advanced deployment",
+            "Priority support"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 229 },
+            { "minSeats": 10, "price": 219 },
+            { "minSeats": 50, "price": 209 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 219 },
+            { "minSeats": 10, "price": 209 },
+            { "minSeats": 50, "price": 199 }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Nitro Sign",
+      "description": "Secure electronic signature solutions",
+      "plans": [
+        {
+          "name": "Nitro Sign Standard",
+          "description": "Essential e-signature capabilities",
+          "features": [
+            "Unlimited e-signatures",
+            "Basic workflows",
+            "Email notifications"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 149 },
+            { "minSeats": 10, "price": 139 },
+            { "minSeats": 50, "price": 129 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 139 },
+            { "minSeats": 10, "price": 129 },
+            { "minSeats": 50, "price": 119 }
+          ],
+          "packagePrice": 1.5,
+          "apiPrice": 0.5,
+          "freePackagesPerSeat": 200
+        },
+        {
+          "name": "Nitro Sign Plus",
+          "description": "Advanced e-signature and workflow features",
+          "features": [
+            "All Standard features",
+            "Advanced workflows",
+            "Template library",
+            "Bulk send"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 199 },
+            { "minSeats": 10, "price": 189 },
+            { "minSeats": 50, "price": 179 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 189 },
+            { "minSeats": 10, "price": 179 },
+            { "minSeats": 50, "price": 169 }
+          ],
+          "packagePrice": 1.25,
+          "apiPrice": 0.4,
+          "freePackagesPerSeat": 200
+        },
+        {
+          "name": "Nitro Sign Enterprise",
+          "description": "Enterprise e-signature solutions",
+          "features": [
+            "All Plus features",
+            "Enterprise security",
+            "Advanced analytics",
+            "Dedicated support"
+          ],
+          "oneYearPricing": [
+            { "minSeats": 1, "price": 259 },
+            { "minSeats": 10, "price": 249 },
+            { "minSeats": 50, "price": 239 }
+          ],
+          "threeYearPricing": [
+            { "minSeats": 1, "price": 249 },
+            { "minSeats": 10, "price": 239 },
+            { "minSeats": 50, "price": 229 }
+          ],
+          "packagePrice": 1.0,
+          "apiPrice": 0.3,
+          "freePackagesPerSeat": 200
+        }
+      ]
+    }
+  ]
+}
