@@ -1,0 +1,44 @@
+<div class="pricing-page">
+  <div class="pricing-header">
+    <h1>Nitro Pricing</h1>
+    <div class="term-toggle">
+      <button [class.active]="selectedTerm === '1year'" (click)="selectedTerm = '1year'">1 Year</button>
+      <button [class.active]="selectedTerm === '3year'" (click)="selectedTerm = '3year'">3 Years</button>
+    </div>
+  </div>
+
+  <div *ngFor="let family of productFamilies" class="product-family">
+    <h2>{{ family.name }}</h2>
+    <p class="family-description">{{ family.description }}</p>
+    
+    <div class="plans-grid">
+      <div *ngFor="let plan of family.plans" class="plan-card">
+        <div class="plan-card-content">
+          <h3>{{ plan.name }}</h3>
+          <p class="plan-description">{{ plan.description }}</p>
+          <div class="price">
+            <span class="amount">${{ getPlanPrice(plan) }}</span>
+            <span class="period">per seat/{{ selectedTerm === '1year' ? 'year' : '3 years' }}</span>
+          </div>
+          <ul class="features">
+            <li *ngFor="let feature of plan.features">{{ feature }}</li>
+          </ul>
+        </div>
+        <div class="plan-card-footer">
+          <button mat-raised-button color="primary" class="select-plan-btn" (click)="selectPlan(family.name, plan.name)">Select Plan</button>
+        </div>
+        <div *ngIf="family.name === 'Nitro Sign'" class="additional-pricing">
+          <p *ngIf="plan.freePackagesPerSeat">
+            Includes {{ plan.freePackagesPerSeat }} free packages per seat
+          </p>
+          <p *ngIf="plan.packagePrice">
+            Additional packages: ${{ plan.packagePrice }} each
+          </p>
+          <p *ngIf="plan.apiPrice">
+            API calls: ${{ plan.apiPrice }} per call
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

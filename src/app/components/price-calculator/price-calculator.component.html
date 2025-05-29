@@ -1,0 +1,90 @@
+<div class="calculator-page">
+  <mat-card class="calculator-form">
+    <h2>Price Calculator</h2>
+    <form autocomplete="off">
+      <div class="form-section">
+        <label>Term:</label>
+        <mat-button-toggle-group [(ngModel)]="selectedTerm" name="term" (change)="calculateTotal()" exclusive>
+          <mat-button-toggle value="1year">1 Year</mat-button-toggle>
+          <mat-button-toggle value="3year">3 Years</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+      <div class="calculator-grid">
+        <ng-container *ngFor="let family of productFamilies; let i = index">
+          <mat-card class="family-section stigg-style" style="margin-bottom: 24px;">
+            <mat-card-title>{{ family.name }}</mat-card-title>
+            <mat-card-content>
+              <div class="form-section">
+                <mat-form-field appearance="fill" style="width: 100%;">
+                  <mat-label>Plan</mat-label>
+                  <mat-select [(ngModel)]="selections[family.name].selectedPlan" [name]="'plan-' + i" (selectionChange)="calculateTotal()">
+                    <mat-option value="" disabled>Select a plan</mat-option>
+                    <mat-option *ngFor="let plan of getPlans(family.name)" [value]="plan.name">{{ plan.name }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <div *ngIf="selections[family.name].selectedPlan">
+                <div class="form-section slider-section">
+                  <label>Seats: <strong>{{ selections[family.name].seats }}</strong></label>
+                  <mat-slider
+                    min="1"
+                    max="100"
+                    step="1"
+                    thumbLabel
+                    tickInterval="10"
+                    [(ngModel)]="selections[family.name].seats"
+                    [name]="'seats-' + i"
+                    (ngModelChange)="calculateTotal()"
+                  ></mat-slider>
+                </div>
+                <div class="form-section slider-section" *ngIf="showSignOptions(family.name)">
+                  <label>Packages: <strong>{{ selections[family.name].packages }}</strong></label>
+                  <mat-slider
+                    min="0"
+                    max="100000"
+                    step="10"
+                    thumbLabel
+                    tickInterval="10000"
+                    [(ngModel)]="selections[family.name].packages"
+                    [name]="'packages-' + i"
+                    (ngModelChange)="calculateTotal()"
+                  ></mat-slider>
+                  <label>API Calls per Month: <strong>{{ selections[family.name].apiCalls }}</strong></label>
+                  <mat-slider
+                    min="0"
+                    max="100000"
+                    step="100"
+                    thumbLabel
+                    tickInterval="10000"
+                    [(ngModel)]="selections[family.name].apiCalls"
+                    [name]="'apiCalls-' + i"
+                    (ngModelChange)="calculateTotal()"
+                  ></mat-slider>
+                </div>
+                <div *ngIf="selections[family.name].totalPrice !== null" class="family-summary" style="margin-top: 12px;">
+                  <div *ngIf="family.name === 'Nitro Sign'">
+                    <div>Seats: {{ selections[family.name].seats }} × {{ selections[family.name].breakdown.seatUnitPrice | currency }} = <strong>{{ selections[family.name].breakdown.seatCost | currency }}</strong></div>
+                    <div>Free packages: {{ selections[family.name].breakdown.freePackages }}</div>
+                    <div>Extra packages: {{ selections[family.name].breakdown.extraPackages }} &times; <span>{{ getSelectedPlanPrice(family.name, 'packagePrice') | currency }}</span> = <strong>{{ selections[family.name].breakdown.packageCost | currency }}</strong></div>
+                    <div>API calls: {{ selections[family.name].apiCalls }} &times; <span>{{ getSelectedPlanPrice(family.name, 'apiPrice') | currency }}</span> = <strong>{{ selections[family.name].breakdown.apiCost | currency }}</strong></div>
+                  </div>
+                  <div *ngIf="family.name !== 'Nitro Sign'">
+                    <div>Seats: {{ selections[family.name].seats }} × {{ selections[family.name].breakdown.seatUnitPrice | currency }} = <strong>{{ selections[family.name].breakdown.seatCost | currency }}</strong></div>
+                  </div>
+                  <div style="margin-top: 0.5rem;">Subtotal: <strong>{{ selections[family.name].totalPrice | currency }}</strong></div>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </ng-container>
+      </div>
+    </form>
+  </mat-card>
+  <mat-card *ngIf="combinedTotal !== null" class="calculator-summary">
+    <h2>Total Subscription Price</h2>
+    <div class="total-price">{{ combinedTotal | currency }}</div>
+    <p class="period">
+      per <span *ngIf="selectedTerm === '1year'">year</span><span *ngIf="selectedTerm === '3year'">3 years</span>
+    </p>
+  </mat-card>
+</div>

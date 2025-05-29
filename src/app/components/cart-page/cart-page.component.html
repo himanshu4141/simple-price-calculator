@@ -1,0 +1,66 @@
+<div class="cart-page">
+  <div class="cart-form card">
+    <h2>Configure Your Plan</h2>
+    <div class="form-section">
+      <h3>Subscription Term</h3>
+      <div class="term-toggle">
+        <button [class.active]="term === '1year'" (click)="term = '1year'; calculateTotal()">1 Year</button>
+        <button [class.active]="term === '3year'" (click)="term = '3year'; calculateTotal()">3 Years</button>
+      </div>
+    </div>
+    <div class="form-section">
+      <h3>Select Products</h3>
+      <!-- PDF Plan Selection -->
+      <div class="product-selection">
+        <label>Nitro PDF Plan:</label>
+        <select [(ngModel)]="selectedPdfPlan" (ngModelChange)="calculateTotal()">
+          <option value="">None</option>
+          <option *ngFor="let plan of getPdfPlans()" [value]="plan.name">
+            {{plan.name}}
+          </option>
+        </select>
+        <label for="pdfSeats">Seats:</label>
+        <input type="number" id="pdfSeats" [(ngModel)]="pdfSeats" (ngModelChange)="calculateTotal()" min="1">
+      </div>
+      <!-- Sign Plan Selection -->
+      <div class="product-selection">
+        <label>Nitro Sign Plan:</label>
+        <select [(ngModel)]="selectedSignPlan" (ngModelChange)="calculateTotal()">
+          <option value="">None</option>
+          <option *ngFor="let plan of getSignPlans()" [value]="plan.name">
+            {{plan.name}}
+          </option>
+        </select>
+        <label for="signSeats">Seats:</label>
+        <input type="number" id="signSeats" [(ngModel)]="signSeats" (ngModelChange)="calculateTotal()" min="1">
+        <div *ngIf="selectedSignPlan" class="sign-options">
+          <label for="signPackages">Packages:</label>
+          <input type="number" id="signPackages" [(ngModel)]="signPackages" (ngModelChange)="calculateTotal()" min="0">
+          <label for="signApiCalls">API Calls per Month:</label>
+          <input type="number" id="signApiCalls" [(ngModel)]="signApiCalls" (ngModelChange)="calculateTotal()" min="0">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="cartItems.length > 0" class="cart-summary card">
+    <h2>Cart Summary</h2>
+    <div class="cart-items">
+      <div *ngFor="let item of cartItems" class="cart-item">
+        <div class="item-details">
+          <h3>{{item.productFamily}} - {{item.planName}}</h3>
+          <p>{{item.seats}} seats × {{term === '1year' ? '1 year' : '3 years'}}</p>
+          <p *ngIf="item.packages">Packages: {{item.packages}}</p>
+          <p *ngIf="item.apiCalls">API Calls: {{item.apiCalls}}/month</p>
+        </div>
+        <div class="item-price">
+          {{item.price | currency}}
+        </div>
+      </div>
+    </div>
+    <div class="cart-total">
+      <h3>Total Price</h3>
+      <div class="total-price">{{totalPrice | currency}}</div>
+      <p class="period">per {{term === '1year' ? 'year' : '3 years'}}</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+<div class="app-container">
+  <nav class="main-nav">
+    <div class="nav-brand">{{ title }}</div>
+    <ul class="nav-links">
+      <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Pricing</a></li>
+      <li><a routerLink="/calculator" routerLinkActive="active">Calculator</a></li>
+      <li><a routerLink="/cart" routerLinkActive="active">Cart</a></li>
+    </ul>
+  </nav>
+  <main>
+    <router-outlet></router-outlet>
+  </main>
+</div>
