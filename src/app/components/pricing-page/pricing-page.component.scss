@@ -15,6 +15,13 @@
     margin-bottom: 1rem;
   }
 
+  .term-label {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1f2937;
+    margin: 1rem 0 0.5rem;
+  }
+
   .term-toggle {
     display: flex;
     justify-content: center;
@@ -104,7 +111,8 @@
   .features {
     list-style: none;
     padding: 0;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    min-height: 200px; // Ensure consistent height across plans
 
     li {
       padding: 0.5rem 0;
@@ -120,30 +128,33 @@
 
   .plan-card-content {
     flex: 1 1 auto;
+    min-height: 220px; /* Adjust as needed for consistent height */
+    display: flex;
+    flex-direction: column;
   }
 
-  .plan-card-footer {
+  .plan-footer {
     display: flex;
-    align-items: flex-end;
     justify-content: flex-end;
+    margin-top: 1.5rem;
     min-height: 56px; /* Ensures button row is always the same height */
     margin-top: 1.5rem;
 
     button {
-      /* Remove any custom color or background overrides to restore default Material color */
-      color: inherit;
-      background: inherit;
+      /* Set default button styles */
+      color: #fff;
+      background: #007bff;
     }
   }
 
-  .plan-card-footer button.mat-raised-button,
-  .plan-card-footer button.mat-flat-button {
-    color: #fff;
-    background-color: #1976d2; /* Material blue, matches selected toggle color */
+  .plan-footer button.mat-raised-button,
+  .plan-footer button.mat-flat-button {
+    color: #fff !important;
+    background-color: #007bff !important;
   }
-  .plan-card-footer button.mat-raised-button:hover,
-  .plan-card-footer button.mat-flat-button:hover {
-    background-color: #1565c0;
+  .plan-footer button.mat-raised-button:hover,
+  .plan-footer button.mat-flat-button:hover {
+    background-color: #0056b3 !important;
   }
 
   .select-plan {
@@ -154,6 +165,8 @@
     font-size: 1.1rem;
     cursor: pointer;
     transition: background 0.3s ease;
+    background-color: #007bff;
+    color: white;
 
     &:hover {
       background: #0056b3;
@@ -166,9 +179,44 @@
     border-top: 1px solid #eee;
     font-size: 0.9rem;
     color: #666;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
 
     p {
       margin: 0.5rem 0;
+      color: #666;
+      margin: 0.5rem 0;
+      font-size: 0.95rem;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
     }
+  }
+
+  .contract-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    margin-top: 0.25rem;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+    color: #555;
+    background: #f2f2f7;
+    border-radius: 12px;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+
+  .plan-divider {
+    margin: 1.5rem 0;
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    width: 80%;
   }
 }

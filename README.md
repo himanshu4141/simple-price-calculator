@@ -1,15 +1,40 @@
 # Simple Price Calculator
 
-A modern Angular app for calculating and comparing subscription pricing for Nitro PDF and Nitro Sign products. Built with Angular Material and deployed to GitHub Pages.
+An Angular-based pricing calculator application for Nitro PDF and Nitro Sign products, featuring granular seat-based pricing tiers, package pricing, and API call pricing.
 
-## Features
+## Key Features
 
-- **Pricing Page**: View all available plans for Nitro PDF and Nitro Sign, with ramp-based pricing and feature breakdowns.
-- **Cart Page**: Select plans and independently set seat/package/API quantities for each product family. See a live summary and total.
-- **Price Calculator**: Interactive calculator with sliders for seats, packages, and API calls. Shows detailed price breakdown and supports both 1-year and 3-year terms.
-- **Consistent UI**: Uses Angular Material for a modern, responsive, and accessible interface.
-- **Robust Logic**: All pricing logic is shared and robust, with correct handling of free packages, ramp pricing, and term selection.
-- **CI/CD**: Automatic deployment to GitHub Pages on every push to `main` (or `master`) via GitHub Actions.
+### Enhanced Pricing Structure
+- **Dynamic Seat-Based Pricing**: Intelligent volume discounts across multiple tiers (1-10,000+ seats)
+- **Package Management**: Built-in free package allocations with overage pricing
+- **API Integration**: Dedicated API call pricing for enterprise plans
+- **Commitment Terms**: Support for both 1-year and 3-year commitments with appropriate discounts
+
+### Modern User Interface
+- **Material Design**: Polished UI using Angular Material components
+- **Responsive Layout**: Optimized for all screen sizes
+- **Interactive Elements**: 
+  - Dynamic price breakdowns
+  - Real-time calculations
+  - Tooltips for additional information
+  - Visual feedback for volume discounts
+
+### Components
+- **Pricing Page**: 
+  - Clear plan comparisons
+  - Feature breakdowns
+  - Transparent pricing tiers
+  - Visible volume discounts
+- **Price Calculator**: 
+  - Granular control over quantities
+  - Detailed price breakdowns
+  - Real-time updates
+  - Term selection
+- **Cart**: 
+  - Product configuration
+  - Comprehensive order summary
+  - Clear pricing breakdown
+  - Package and API call management
 
 ## Live Demo
 
@@ -46,10 +71,28 @@ ng deploy --base-href=/simple-price-calculator/
 
 ## Project Structure
 
-- `src/app/components/` — Main UI components (pricing-page, cart-page, price-calculator)
-- `src/assets/pricing-data.json` — All pricing and plan configuration
-- `src/app/services/pricing.service.ts` — Shared pricing logic
-- `.github/workflows/deploy.yml` — GitHub Actions workflow for CI/CD
+### Core Files
+- `src/assets/pricing-data.json` — Complete pricing configuration including tiers, features, and terms
+- `src/app/models/pricing.model.ts` — TypeScript interfaces for pricing structures
+- `src/app/services/pricing.service.ts` — Centralized pricing calculation logic
+
+### Components
+- `src/app/components/pricing-page/` — Plan comparison and selection
+- `src/app/components/price-calculator/` — Interactive pricing calculator
+- `src/app/components/cart-page/` — Cart configuration and summary
+
+### Configuration
+- `angular.json` — Angular CLI configuration
+- `.github/workflows/deploy.yml` — CI/CD workflow for GitHub Pages
+- `tsconfig.json` — TypeScript configuration
+
+## Technical Implementation
+- **Shared Pricing Logic**: Centralized pricing calculations in `PricingService`
+- **Dynamic Configuration**: All pricing tiers and features managed via `pricing-data.json`
+- **Type Safety**: Strong TypeScript interfaces for all pricing models
+- **Component Communication**: Clean separation of concerns between display and logic
+- **Consistent Terminology**: Unified language across all components (e.g., "Commitment Term")
+- **Error Handling**: Robust validation and error states for all user inputs
 
 ## Contributing
 

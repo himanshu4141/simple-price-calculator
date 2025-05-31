@@ -46,3 +46,47 @@ button {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   padding: 1.5rem;
 }
+
+/* Tooltip styles */
+.custom-tooltip {
+  background: #1a2942;
+  font-size: 13px;
+  padding: 8px 12px;
+  max-width: 250px;
+  line-height: 1.4;
+}
+
+.mat-mdc-form-field.plan-select {
+  width: 100%;
+  max-width: 400px;
+}
+
+.plan-price {
+  margin-left: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Dropdown and slider fixes */
+.plan-select-panel {
+  min-width: calc(100% + 32px) !important;
+  transform: translateX(-16px) !important;
+
+  .mat-mdc-option {
+    min-height: 48px !important;
+  }
+}
+
+.mdc-slider {
+  --mdc-slider-handle-color: #007bff;
+  --mdc-slider-focus-handle-color: #007bff;
+  --mdc-slider-hover-handle-color: #0056b3;
+  --mdc-slider-active-track-color: #007bff;
+  --mdc-slider-inactive-track-color: #e5e7eb;
+  --mdc-slider-with-tick-marks-active-container-color: #fff;
+  --mdc-slider-with-tick-marks-inactive-container-color: #6b7280;
+
+  .mdc-slider__thumb-knob {
+    border-width: 6px !important;
+  }
+}

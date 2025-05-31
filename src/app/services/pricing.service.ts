@@ -4,18 +4,43 @@ import { Observable, of } from 'rxjs';
 import { ProductFamily } from '../models/pricing.model';
 import { catchError } from 'rxjs/operators';
 
+export interface PlanPricing {
+  basePrice: number;
+  seatPrice?: number;
+  packagePrice?: number;
+  apiCallPrice?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class PricingService {
   private pricingDataUrl = 'assets/pricing-data.json';
+  private pricingData: { [key: string]: { [key: string]: PlanPricing } } = {};
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    this.loadPricingData();
+  }
+
+  private loadPricingData() {
+    this.http.get<any>('assets/pricing-data.json').subscribe(data => {
+      this.pricingData = data;
+    });
+  }
 
   fetchPricingData(): Observable<{ productFamilies: ProductFamily[] }> {
     return this.http.get<{ productFamilies: ProductFamily[] }>(this.pricingDataUrl).pipe(
       catchError(() => of({ productFamilies: [] }))
     );
+  }
+
+  getPricingForPlan(familyName: string, planName: string): PlanPricing {
+    return this.pricingData[familyName]?.[planName] || {
+      basePrice: 0,
+      seatPrice: 0,
+      packagePrice: 0,
+      apiCallPrice: 0
+    };
   }
 
   calculatePrice(productFamily: ProductFamily, planName: string, seats: number, packages: number = 0, apiCalls: number = 0, term: '1year' | '3year'): number {

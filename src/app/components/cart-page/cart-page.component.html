@@ -1,66 +1,151 @@
 <div class="cart-page">
-  <div class="cart-form card">
-    <h2>Configure Your Plan</h2>
-    <div class="form-section">
-      <h3>Subscription Term</h3>
-      <div class="term-toggle">
-        <button [class.active]="term === '1year'" (click)="term = '1year'; calculateTotal()">1 Year</button>
-        <button [class.active]="term === '3year'" (click)="term = '3year'; calculateTotal()">3 Years</button>
-      </div>
+  <div class="cart-form">
+    <h1>Configure Your Plan</h1>
+    <div class="term-selector">
+      <label>Commitment Term:</label>
+      <mat-button-toggle-group class="term-toggle-group" [(ngModel)]="term" (change)="calculateTotal()">
+        <mat-button-toggle value="1year">1 Year</mat-button-toggle>
+        <mat-button-toggle value="3year">3 Years</mat-button-toggle>
+      </mat-button-toggle-group>
     </div>
-    <div class="form-section">
-      <h3>Select Products</h3>
-      <!-- PDF Plan Selection -->
-      <div class="product-selection">
-        <label>Nitro PDF Plan:</label>
-        <select [(ngModel)]="selectedPdfPlan" (ngModelChange)="calculateTotal()">
-          <option value="">None</option>
-          <option *ngFor="let plan of getPdfPlans()" [value]="plan.name">
-            {{plan.name}}
-          </option>
-        </select>
-        <label for="pdfSeats">Seats:</label>
-        <input type="number" id="pdfSeats" [(ngModel)]="pdfSeats" (ngModelChange)="calculateTotal()" min="1">
-      </div>
-      <!-- Sign Plan Selection -->
-      <div class="product-selection">
-        <label>Nitro Sign Plan:</label>
-        <select [(ngModel)]="selectedSignPlan" (ngModelChange)="calculateTotal()">
-          <option value="">None</option>
-          <option *ngFor="let plan of getSignPlans()" [value]="plan.name">
-            {{plan.name}}
-          </option>
-        </select>
-        <label for="signSeats">Seats:</label>
-        <input type="number" id="signSeats" [(ngModel)]="signSeats" (ngModelChange)="calculateTotal()" min="1">
-        <div *ngIf="selectedSignPlan" class="sign-options">
-          <label for="signPackages">Packages:</label>
-          <input type="number" id="signPackages" [(ngModel)]="signPackages" (ngModelChange)="calculateTotal()" min="0">
-          <label for="signApiCalls">API Calls per Month:</label>
-          <input type="number" id="signApiCalls" [(ngModel)]="signApiCalls" (ngModelChange)="calculateTotal()" min="0">
-        </div>
-      </div>
+    
+    <div class="products-grid">
+      <!-- PDF Plan Card -->
+      <mat-card class="product-card">
+        <mat-card-header>
+          <mat-card-title>Nitro PDF</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="form-content">
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Select Plan</mat-label>
+                <mat-select [(ngModel)]="selectedPdfPlan" (selectionChange)="calculateTotal()">
+                  <mat-option [value]="">None</mat-option>
+                  <mat-option *ngFor="let plan of getPdfPlans()" [value]="plan.name">
+                    {{ plan.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="form-row" *ngIf="selectedPdfPlan">
+              <div class="input-group">
+                <label>Seats</label>
+                <input type="number" 
+                       [(ngModel)]="pdfSeats"
+                       (ngModelChange)="calculateTotal()"
+                       min="1"
+                       class="quantity-input">
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Sign Plan Card -->
+      <mat-card class="product-card">
+        <mat-card-header>
+          <mat-card-title>Nitro Sign</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="form-content">
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Select Plan</mat-label>
+                <mat-select [(ngModel)]="selectedSignPlan" (selectionChange)="calculateTotal()">
+                  <mat-option [value]="">None</mat-option>
+                  <mat-option *ngFor="let plan of getSignPlans()" [value]="plan.name">
+                    {{ plan.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <ng-container *ngIf="selectedSignPlan">
+              <div class="form-row">
+                <div class="input-group">
+                  <label>Seats</label>
+                  <input type="number"
+                         [(ngModel)]="signSeats"
+                         (ngModelChange)="calculateTotal()"
+                         min="1"
+                         class="quantity-input">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="input-group">
+                  <label matTooltip="Number of signing workflows completed by a user either via a UI or official Nitro sign connector">
+                    Packages
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="signPackages"
+                         (ngModelChange)="calculateTotal()"
+                         min="0"
+                         class="quantity-input">
+                </div>
+
+                <div class="package-info" *ngIf="getFreePackages() > 0">
+                  Includes {{ getFreePackages() | number }} free packages
+                </div>
+              </div>
+
+              <div class="form-row" *ngIf="selectedSignPlan === 'Nitro Sign Enterprise'">
+                <div class="input-group">
+                  <label matTooltip="Signing workflow completed or any API calls made in a machine to machine automation scenario">
+                    API Calls
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="signApiCalls"
+                         (ngModelChange)="calculateTotal()"
+                         min="0"
+                         class="quantity-input">
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </div>
   </div>
-  <div *ngIf="cartItems.length > 0" class="cart-summary card">
+
+  <div *ngIf="cartItems.length > 0" class="cart-summary">
     <h2>Cart Summary</h2>
-    <div class="cart-items">
-      <div *ngFor="let item of cartItems" class="cart-item">
-        <div class="item-details">
-          <h3>{{item.productFamily}} - {{item.planName}}</h3>
-          <p>{{item.seats}} seats × {{term === '1year' ? '1 year' : '3 years'}}</p>
-          <p *ngIf="item.packages">Packages: {{item.packages}}</p>
-          <p *ngIf="item.apiCalls">API Calls: {{item.apiCalls}}/month</p>
+    
+    <div class="product-totals">
+      <div *ngFor="let item of cartItems" class="product-total-row">
+        <div class="product-info">
+          <h3>{{ item.productFamily }}</h3>
+          <div class="plan-name">{{ item.planName }}</div>
         </div>
-        <div class="item-price">
-          {{item.price | currency}}
+        <div class="product-cost">
+          <div class="breakdown">
+            <div>{{ item.seats }} seats × {{ term === '1year' ? '1 year' : '3 years' }}</div>
+            <div *ngIf="item.packages">{{ item.packages }} packages</div>
+            <div *ngIf="item.apiCalls">{{ item.apiCalls }} API calls/month</div>
+          </div>
+          <div class="amount">{{ item.price | currency }}/year</div>
         </div>
       </div>
     </div>
-    <div class="cart-total">
-      <h3>Total Price</h3>
-      <div class="total-price">{{totalPrice | currency}}</div>
-      <p class="period">per {{term === '1year' ? 'year' : '3 years'}}</p>
+
+    <div class="grand-total">
+      <div class="annual-cost">
+        <span>Total Annual Cost</span>
+        <span class="total-amount">{{ totalPrice | currency }}/year</span>
+      </div>
+      <div class="monthly-breakdown">
+        ({{ totalPrice / 12 | currency }}/month, billed annually)
+      </div>
     </div>
+    
+    <div class="term-note" *ngIf="term === '3year'">
+      * Prices reflect 3-year commitment discount
+    </div>
+
+    <button mat-raised-button color="primary" class="checkout-button" (click)="checkout()">
+      Proceed to Checkout
+    </button>
   </div>
 </div>
