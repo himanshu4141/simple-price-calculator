@@ -1,0 +1,277 @@
+// Nitro Angular Material Theme
+// Adapted for Angular 13 - Based on Nitro Brand Guide - January 2025
+
+@import '~@angular/material/theming';
+
+// Include the common styles for Angular Material
+@include mat-core();
+
+// Define Nitro brand colors based on the brand guide
+$nitro-primary-palette: (
+  50: #fff3e0,
+  100: #ffe0b3,
+  200: #ffcc80,
+  300: #ffb74d,
+  400: #ffa726,
+  500: #F54811,
+  600: #e03e0a,
+  700: #cc3708,
+  800: #b83006,
+  900: #a12804,
+  A100: #ffccbc,
+  A200: #ffab91,
+  A400: #ff8a65,
+  A700: #ff7043,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: white,
+  )
+);
+
+$nitro-accent-palette: (
+  50: #e8f4ff,
+  100: #c6e2ff,
+  200: #a1ceff,
+  300: #7bb9ff,
+  400: #5fa9ff,
+  500: #4576E1,
+  600: #3d6bcc,
+  700: #345eb8,
+  800: #2c52a3,
+  900: #24468f,
+  A100: #d1e7ff,
+  A200: #a6d4ff,
+  A400: #7ac1ff,
+  A700: #5eb5ff,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: white,
+  )
+);
+
+$nitro-warn-palette: (
+  50: #fef3e2,
+  100: #fce0b6,
+  200: #f9cb87,
+  300: #f6b557,
+  400: #f4a433,
+  500: #D93706,
+  600: #c53206,
+  700: #b02c05,
+  800: #9c2705,
+  900: #881f04,
+  A100: #ffccbc,
+  A200: #ffab91,
+  A400: #ff8a65,
+  A700: #ff7043,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: white,
+  )
+);
+
+// Create the theme palettes
+$nitro-primary: mat-palette($nitro-primary-palette);
+$nitro-accent: mat-palette($nitro-accent-palette);
+$nitro-warn: mat-palette($nitro-warn-palette);
+
+// Create typography configuration
+$nitro-typography: mat-typography-config(
+  $font-family: 'DM Sans, IBM Plex Sans, Arial, sans-serif',
+  $display-4: mat-typography-level(96px, 96px, 300, 'DM Serif Text'),
+  $display-3: mat-typography-level(60px, 60px, 300, 'DM Serif Text'),
+  $display-2: mat-typography-level(48px, 50px, 400, 'DM Serif Text'),
+  $display-1: mat-typography-level(34px, 40px, 400, 'DM Serif Text'),
+  $headline: mat-typography-level(24px, 32px, 400, 'DM Sans'),
+  $title: mat-typography-level(20px, 32px, 500, 'DM Sans'),
+  $subheading-2: mat-typography-level(16px, 28px, 400, 'DM Sans'),
+  $subheading-1: mat-typography-level(14px, 22px, 500, 'DM Sans'),
+  $body-2: mat-typography-level(14px, 20px, 400, 'DM Sans'),
+  $body-1: mat-typography-level(16px, 24px, 400, 'DM Sans'),
+  $caption: mat-typography-level(12px, 20px, 400, 'IBM Plex Sans'),
+  $button: mat-typography-level(14px, 36px, 500, 'DM Sans'),
+  $input: mat-typography-level(inherit, 1.125, 400)
+);
+
+// Create the light theme
+$nitro-light-theme: mat-light-theme((
+  color: (
+    primary: $nitro-primary,
+    accent: $nitro-accent,
+    warn: $nitro-warn,
+  ),
+  typography: $nitro-typography,
+  density: 0,
+));
+
+// Create the dark theme
+$nitro-dark-theme: mat-dark-theme((
+  color: (
+    primary: $nitro-primary,
+    accent: $nitro-accent,
+    warn: $nitro-warn,
+  ),
+  typography: $nitro-typography,
+  density: 0,
+));
+
+// Apply the light theme by default
+@include angular-material-theme($nitro-light-theme);
+
+// Dark theme class
+.dark-theme {
+  @include angular-material-color($nitro-dark-theme);
+}
+
+// Custom CSS Variables for Nitro Brand Colors
+:root {
+  --nitro-orange: #F54811;
+  --nitro-black: #090B21;
+  --nitro-peach: #FFEA6F;
+  --nitro-mist: #E1E5FC;
+  --nitro-sky: #F7F5FF;
+  --nitro-silver: #FAFAFC;
+  --nitro-night: #30314D;
+  --nitro-eclipse: #4C4B6D;
+  --nitro-terracotta: #D93706;
+  --nitro-fig: #4576E1;
+  --nitro-pine: #00B476;
+  --nitro-orange-rgb: 245, 72, 17;
+  --nitro-black-rgb: 9, 11, 33;
+  --nitro-night-rgb: 48, 49, 77;
+  --nitro-eclipse-rgb: 76, 75, 109;
+  
+  // Spacing variables
+  --nitro-spacing-xs: 0.25rem;
+  --nitro-spacing-sm: 0.5rem;
+  --nitro-spacing-md: 1rem;
+  --nitro-spacing-lg: 1.5rem;
+  --nitro-spacing-xl: 2rem;
+  --nitro-spacing-2xl: 3rem;
+  --nitro-spacing-3xl: 4rem;
+}
+
+// Utility classes for Nitro branding
+.nitro-primary-bg {
+  background-color: var(--nitro-orange) !important;
+  color: white !important;
+}
+
+.nitro-secondary-bg {
+  background-color: var(--nitro-black) !important;
+  color: white !important;
+}
+
+.nitro-text-primary {
+  color: var(--nitro-orange) !important;
+}
+
+.nitro-text-secondary {
+  color: var(--nitro-night) !important;
+}
+
+.nitro-border-primary {
+  border-color: var(--nitro-orange) !important;
+}
+
+.nitro-heading {
+  font-family: 'DM Serif Text', serif;
+  color: var(--nitro-black);
+}
+
+.nitro-body-text {
+  font-family: 'DM Sans', sans-serif;
+  color: var(--nitro-eclipse);
+}
+
+.nitro-caption {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  color: var(--nitro-eclipse);
+}
+
+// Responsive typography for mobile
+@media (max-width: 768px) {
+  .mat-h1, .mat-h2, .mat-h3, .mat-headline-1, .mat-headline-2, .mat-headline-3 {
+    font-size: clamp(24px, 5vw, 48px);
+    line-height: 1.2;
+  }
+}
+
+// Custom button styles
+.mat-raised-button.mat-primary {
+  background-color: var(--nitro-orange);
+  border-radius: 8px;
+  font-weight: 500;
+  
+  &:hover {
+    background-color: rgba(var(--nitro-orange-rgb), 0.9);
+  }
+}
+
+.mat-stroked-button.mat-primary {
+  border-color: var(--nitro-orange);
+  color: var(--nitro-orange);
+  border-radius: 8px;
+  font-weight: 500;
+  
+  &:hover {
+    background-color: rgba(var(--nitro-orange-rgb), 0.1);
+  }
+}
+
+// Custom card styles
+.mat-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(var(--nitro-black-rgb), 0.1);
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+}
+
+// Custom form field styles
+.mat-form-field-appearance-outline .mat-form-field-outline {
+  color: rgba(var(--nitro-eclipse-rgb), 0.3);
+}
+
+.mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: var(--nitro-orange);
+}
+
+.mat-form-field.mat-focused .mat-form-field-label {
+  color: var(--nitro-orange);
+}

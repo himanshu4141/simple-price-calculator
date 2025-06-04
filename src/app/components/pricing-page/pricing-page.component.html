@@ -1,52 +1,141 @@
 <div class="pricing-page">
-  <div class="pricing-header">
-    <h1>Nitro Pricing</h1>
-    <p class="term-label">Commitment Term</p>
-    <div class="term-toggle">
-      <button [class.active]="selectedTerm === '1year'" (click)="selectedTerm = '1year'">1 Year</button>
-      <button [class.active]="selectedTerm === '3year'" (click)="selectedTerm = '3year'">3 Years</button>
-    </div>
-  </div>
-
-  <div *ngFor="let family of productFamilies" class="product-family">
-    <h2>{{ family.name }}</h2>
-    <p class="family-description">{{ family.description }}</p>
-    
-    <div class="plans-grid">
-      <div *ngFor="let plan of family.plans" class="plan-card">
-        <div class="plan-card-content">
-          <h3>{{ plan.name }}</h3>
-          <div class="price">
-            <span class="amount">${{ getPlanPrice(plan) }}</span>
-            <span class="period">/ seat / year</span>
-            <span *ngIf="selectedTerm === '3year'" class="contract-badge">3-year contract</span>
-          </div>
-
-          <!-- Core Features -->
-          <ul class="features">
-            <li *ngFor="let feature of plan.features">{{ feature }}</li>
-          </ul>
-
-          <!-- Additional Pricing Info for Nitro Sign -->
-          <div *ngIf="family.name === 'Nitro Sign'" class="additional-pricing">
-            <p *ngIf="plan.freePackagesPerSeat">
-              <strong>Included:</strong> {{ plan.freePackagesPerSeat }} free packages per seat
-            </p>
-            <p *ngIf="plan.packagePrice">
-              <strong>Additional packages:</strong> ${{ plan.packagePrice }} each
-            </p>
-            <p *ngIf="plan.apiPrice">
-              <strong>API calls:</strong> ${{ plan.apiPrice }} per call
-            </p>
-          </div>
-        </div>
-
-        <div class="plan-footer">
-          <button mat-raised-button color="primary" class="select-plan-btn" (click)="selectPlan(family, plan.name)">
-            Select Plan
+  <!-- Enhanced header with unified H1 and commitment toggle -->
+  <div class="pricing-header-section">
+    <div class="header-content">
+      <h1 class="nitro-heading">Choose Your Nitro Plan</h1>
+      <div class="commitment-container">
+        <p class="commitment-label nitro-body-text">Select your commitment term for the best pricing</p>
+        <div class="commitment-toggle">
+          <button 
+            [class.active]="selectedTerm === '1year'" 
+            (click)="selectedTerm = '1year'"
+            class="commitment-btn">
+            <span class="term">1 Year</span>
+            <span class="savings">Standard Rate</span>
+          </button>
+          <button 
+            [class.active]="selectedTerm === '3year'" 
+            (click)="selectedTerm = '3year'"
+            class="commitment-btn">
+            <span class="term">3 Years</span>
+            <span class="savings">Save up to 20%</span>
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Product families with improved structure -->
+  <div class="products-section">
+    <div *ngFor="let family of productFamilies" class="product-family">
+      <div class="family-header">
+        <h2 class="nitro-heading">{{ family.name }}</h2>
+        <p class="family-description nitro-body-text">{{ family.description }}</p>
+      </div>
+      
+      <div class="plans-grid">
+        <div *ngFor="let plan of family.plans" class="plan-card">
+          <div class="plan-header">
+            <h3 class="plan-name">{{ plan.name }}</h3>
+            <div class="team-suggestion" *ngIf="getTeamSuggestion(plan.name)">
+              <mat-icon>group</mat-icon>
+              <span>{{ getTeamSuggestion(plan.name) }}</span>
+            </div>
+          </div>
+
+          <div class="plan-pricing">
+            <div class="price-display">
+              <span class="currency">$</span>
+              <span class="amount">{{ getPlanPrice(plan) }}</span>
+              <div class="price-details">
+                <span class="period">per seat / year</span>
+                <span *ngIf="selectedTerm === '3year'" class="contract-badge">3-year commitment</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-features">
+            <!-- Core Features -->
+            <div class="features-section">
+              <h4>What's included:</h4>
+              <ul class="features-list">
+                <li *ngFor="let feature of plan.features">
+                  <mat-icon>check</mat-icon>
+                  <span>{{ getFeatureDisplayText(feature) }}</span>
+                  <button 
+                    *ngIf="isFeatureTechnical(feature)" 
+                    mat-icon-button 
+                    class="info-btn"
+                    [matTooltip]="getFeatureTooltip(feature)"
+                    matTooltipPosition="above">
+                    <mat-icon>info</mat-icon>
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Enhanced Sign product information -->
+            <div *ngIf="family.name === 'Nitro Sign'" class="sign-pricing-details">
+              <div class="included-section">
+                <h4>Included per seat:</h4>
+                <p *ngIf="plan.freePackagesPerSeat" class="included-item">
+                  <mat-icon>inbox</mat-icon>
+                  <span>{{ plan.freePackagesPerSeat }} signature packages included</span>
+                  <button 
+                    mat-icon-button 
+                    class="info-btn"
+                    matTooltip="A signature package includes sending a document for signature, tracking, and managing the signing process"
+                    matTooltipPosition="above">
+                    <mat-icon>help_outline</mat-icon>
+                  </button>
+                </p>
+              </div>
+              
+              <div class="additional-costs" *ngIf="plan.packagePrice || plan.apiPrice">
+                <h4>Additional usage:</h4>
+                <p *ngIf="plan.packagePrice" class="cost-item">
+                  <mat-icon>add_circle_outline</mat-icon>
+                  <span>Extra signature packages: ${{ plan.packagePrice }} each</span>
+                </p>
+                <p *ngIf="plan.apiPrice" class="cost-item">
+                  <mat-icon>api</mat-icon>
+                  <span>API integrations: ${{ plan.apiPrice }} per call</span>
+                  <button 
+                    mat-icon-button 
+                    class="info-btn"
+                    matTooltip="API calls allow you to integrate Nitro Sign with your existing systems and workflows"
+                    matTooltipPosition="above">
+                    <mat-icon>help_outline</mat-icon>
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-footer">
+            <button mat-raised-button color="primary" class="configure-plan-btn" (click)="configurePlan(family, plan.name)">
+              <mat-icon>settings</mat-icon>
+              Configure & Add to Cart
+            </button>
+            <button mat-stroked-button color="primary" class="quick-add-btn" (click)="quickAddPlan(family, plan.name)">
+              <mat-icon>add_shopping_cart</mat-icon>
+              Quick Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help CTA section -->
+  <div class="help-cta-section">
+    <div class="help-cta-content">
+      <mat-icon>calculate</mat-icon>
+      <span>Need help calculating costs for your specific requirements?</span>
+      <button mat-stroked-button color="primary" (click)="goToCalculator()" class="help-calculator-btn">
+        Use Cost Calculator
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
     </div>
   </div>
 </div>

@@ -1,7 +1,6 @@
 // Price Calculator Component Styling with Nitro Theme
 
 .calculator-page {
-  max-width: 1400px;
   padding: var(--nitro-spacing-xl);
   background: var(--nitro-silver);
   min-height: 100vh;
@@ -97,14 +96,14 @@
   }
 }
 
-.products-grid {
+.calculator-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: var(--nitro-spacing-xl);
   align-items: start;
   margin-bottom: var(--nitro-spacing-xl);
 
-  @media (max-width: 1024px) {
+  @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: var(--nitro-spacing-lg);
   }
@@ -219,84 +218,14 @@
   }
 }
 
-// Package info styling similar to volume discount
-.package-info {
-  margin-top: var(--nitro-spacing-sm);
-  padding: var(--nitro-spacing-sm) var(--nitro-spacing-md);
-  background: rgba(0, 180, 118, 0.1);
-  border: 1px solid var(--nitro-pine);
-  border-radius: 8px;
-  color: var(--nitro-pine);
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
-  text-align: center;
-}
-
-// Enhanced form styling
-.form-content {
-  .form-row {
-    margin-bottom: var(--nitro-spacing-lg);
-
-    // Improved Material form field styling
-    ::ng-deep {
-      .mat-mdc-form-field {
-        width: 100%;
-        font-family: 'DM Sans', sans-serif;
-
-        .mat-mdc-text-field-wrapper {
-          background-color: white;
-          border-radius: 12px;
-          padding: 4px 16px;
-          border: 2px solid var(--nitro-mist);
-          transition: all 0.2s ease;
-
-          &:hover {
-            border-color: var(--nitro-orange);
-          }
-        }
-
-        &.mat-focused .mat-mdc-text-field-wrapper {
-          border-color: var(--nitro-orange);
-          box-shadow: 0 0 0 3px rgba(245, 72, 17, 0.1);
-        }
-
-        .mat-mdc-form-field-outline {
-          display: none;
-        }
-
-        .mat-mdc-floating-label {
-          color: var(--nitro-eclipse);
-          font-family: 'DM Sans', sans-serif;
-          font-weight: 500;
-        }
-
-        &.mat-focused .mat-mdc-floating-label {
-          color: var(--nitro-orange);
-        }
-
-        .mat-mdc-input-element {
-          color: var(--nitro-black);
-          font-family: 'DM Sans', sans-serif;
-          font-size: 1rem;
-        }
-      }
-    }
-  }
-}
-
 .input-group {
   display: flex;
   align-items: center;
-  gap: var(--nitro-spacing-md);
-  margin-bottom: var(--nitro-spacing-lg);
-  background: var(--nitro-sky);
-  padding: var(--nitro-spacing-md);
-  border-radius: 12px;
-  border: 1px solid var(--nitro-mist);
+  gap: var(--nitro-spacing-lg);
+  margin-bottom: var(--nitro-spacing-md);
 
   label {
-    min-width: 80px;
+    min-width: 120px;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--nitro-eclipse);
@@ -306,17 +235,15 @@
   }
 
   .quantity-input {
-    width: 100px;
-    height: 42px;
+    width: 120px;
+    height: 40px;
     padding: 0 var(--nitro-spacing-sm);
-    border: 2px solid white;
+    border: 2px solid var(--nitro-mist);
     border-radius: 8px;
     font-size: 1rem;
     text-align: center;
     color: var(--nitro-black);
     font-family: 'DM Sans', sans-serif;
-    background: white;
-    font-weight: 500;
     transition: all 0.2s ease;
 
     &:focus {
@@ -330,88 +257,95 @@
     }
   }
 
-  .price-details {
-    margin-left: auto;
+  .price-display {
+    min-width: 140px;
     text-align: right;
+    color: var(--nitro-eclipse);
+    font-size: 1rem;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
 
-    .price-display {
-      color: var(--nitro-black);
-      font-size: 0.875rem;
-      font-weight: 600;
-      font-family: 'DM Sans', sans-serif;
-    }
+.input-with-label {
+  display: flex;
+  align-items: center;
+  gap: var(--nitro-spacing-md);
+  margin-bottom: var(--nitro-spacing-md);
+
+  .label-with-tooltip {
+    display: flex;
+    align-items: center;
+    gap: var(--nitro-spacing-xs);
+    min-width: 120px;
 
     .tier-info {
-      font-size: 0.75rem;
+      font-size: 0.875rem;
       color: var(--nitro-pine);
-      margin-top: 2px;
       font-weight: 500;
-      background: rgba(0, 180, 118, 0.1);
-      padding: 2px 8px;
-      border-radius: 4px;
-      display: inline-block;
+    }
+
+    .included-info {
+      font-size: 0.875rem;
+      color: var(--nitro-eclipse);
+      font-style: italic;
+    }
+
+    .rate-info {
+      font-size: 0.875rem;
+      color: var(--nitro-eclipse);
     }
   }
 }
 
-// Enhanced product card styling
-::ng-deep {
-  .mat-mdc-card {
-    background: white;
-    border-radius: 16px;
-    border: 1px solid var(--nitro-mist);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
-    transition: all 0.3s ease;
-    font-family: 'DM Sans', sans-serif;
+.price-breakdown {
+  margin-top: var(--nitro-spacing-lg);
+  padding-top: var(--nitro-spacing-lg);
+  border-top: 1px solid var(--nitro-mist);
 
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--nitro-spacing-xs) 0;
+    color: var(--nitro-eclipse);
+    font-size: 0.875rem;
 
-    .mat-mdc-card-header {
-      background: linear-gradient(135deg, var(--nitro-orange), #ff6b35);
-      color: white;
-      padding: var(--nitro-spacing-lg);
-      
-      .mat-mdc-card-title {
-        font-family: 'DM Sans', sans-serif;
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin: 0;
-        color: white;
+    .breakdown-label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .tier-info {
+        font-size: 0.75rem;
+        color: var(--nitro-pine);
+        font-weight: 500;
+      }
+
+      .included-info {
+        font-size: 0.75rem;
+        color: var(--nitro-eclipse);
+        font-style: italic;
+      }
+
+      .rate-info {
+        font-size: 0.75rem;
+        color: var(--nitro-eclipse);
       }
     }
-
-    .mat-mdc-card-content {
-      padding: var(--nitro-spacing-lg);
-    }
-  }
-}
-
-// Enhanced breakdown styling
-.breakdown-row {
-  .tier-info {
-    font-size: 0.75rem;
-    color: var(--nitro-pine);
-    font-weight: 500;
-    background: rgba(0, 180, 118, 0.1);
-    padding: 2px 8px;
-    border-radius: 4px;
-    display: inline-block;
-    margin-top: 4px;
   }
 
-  .included-info {
-    font-size: 0.75rem;
-    color: var(--nitro-pine);
-    font-weight: 500;
-    background: rgba(0, 180, 118, 0.1);
-    padding: 2px 8px;
-    border-radius: 4px;
-    display: inline-block;
-    margin-top: 4px;
+  .breakdown-total {
+    margin-top: var(--nitro-spacing-md);
+    padding-top: var(--nitro-spacing-md);
+    border-top: 2px solid var(--nitro-mist);
+    font-weight: 600;
+    color: var(--nitro-black);
+    font-size: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Sans', sans-serif;
   }
 }
 

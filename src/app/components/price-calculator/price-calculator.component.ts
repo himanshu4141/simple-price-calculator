@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PricingService } from '../../services/pricing.service';
 import { ProductFamily, Plan } from '../../models/pricing.model';
 
@@ -32,10 +33,29 @@ export class PriceCalculatorComponent implements OnInit {
   selectedTerm: '1year' | '3year' = '1year';
   selections: { [key: string]: Selection } = {};
   totalPrice = 0;
+  isConfigureMode = false;
+  sourceProduct = '';
+  sourcePlan = '';
 
-  constructor(private pricingService: PricingService) {}
+  constructor(
+    private pricingService: PricingService,
+    private route: ActivatedRoute,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
+    // Handle URL parameters for configure mode
+    this.route.queryParams.subscribe(params => {
+      if (params['mode'] === 'configure') {
+        this.isConfigureMode = true;
+        this.sourceProduct = params['product'] || '';
+        this.sourcePlan = params['plan'] || '';
+        if (params['term']) {
+          this.selectedTerm = params['term'] as '1year' | '3year';
+        }
+      }
+    });
+
     // Load pricing data
     this.pricingService.fetchPricingData().subscribe(data => {
       this.productFamilies = data.productFamilies;
@@ -54,6 +74,15 @@ export class PriceCalculatorComponent implements OnInit {
           }
         };
       });
+      
+      // Pre-configure if coming from pricing page
+      if (this.isConfigureMode && this.sourceProduct && this.sourcePlan) {
+        const family = this.productFamilies.find(f => f.name === this.sourceProduct);
+        if (family && this.selections[this.sourceProduct]) {
+          this.selections[this.sourceProduct].selectedPlan = this.sourcePlan;
+          this.calculatePricing(this.sourceProduct);
+        }
+      }
     });
   }
 
@@ -159,5 +188,101 @@ export class PriceCalculatorComponent implements OnInit {
       .sort((a, b) => b.minSeats - a.minSeats)[0];
       
     return currentTier?.minSeats || 0;
+  }
+
+  // Add configured plan to cart
+  addToCart(familyName: string): void {
+    const selection = this.selections[familyName];
+    if (!selection.selectedPlan) return;
+
+    const queryParams: any = {
+      product: familyName,
+      plan: selection.selectedPlan,
+      term: this.selectedTerm,
+      seats: selection.seats
+    };
+
+    // Add Sign-specific parameters if applicable
+    if (familyName === 'Nitro Sign') {
+      if (selection.packages > 0) {
+        queryParams.packages = selection.packages;
+      }
+      if (selection.apiCalls > 0) {
+        queryParams.apiCalls = selection.apiCalls;
+      }
+    }
+
+    this.router.navigate(['/cart'], { queryParams });
+  }
+
+  // Return to pricing page
+  backToPricing(): void {
+    this.router.navigate(['/pricing']);
+  }
+
+  // Check if there are valid selections to show action buttons
+  hasValidSelections(): boolean {
+    return Object.values(this.selections).some(selection => 
+      selection.selectedPlan && selection.seats > 0
+    );
+  }
+
+  // Navigate to cart with all configured selections
+    // Add all valid selections to cart and navigate
+  addAllToCart(): void {
+    const params: any = {
+      term: this.selectedTerm,
+      fromCalculator: 'true'
+    };
+
+    // Add each valid selection to the parameters
+    this.productFamilies.forEach(family => {
+      const selection = this.selections[family.name];
+      if (selection?.selectedPlan) {
+        const familyKey = family.name.toLowerCase().replace(' ', '');
+        params[`${familyKey}_plan`] = selection.selectedPlan;
+        params[`${familyKey}_seats`] = selection.seats;
+        
+        if (family.name === 'Nitro Sign') {
+          if (selection.packages > 0) {
+            params[`${familyKey}_packages`] = selection.packages;
+          }
+          if (selection.apiCalls > 0) {
+            params[`${familyKey}_apiCalls`] = selection.apiCalls;
+          }
+        }
+      }
+    });
+
+    // Navigate to cart with all selections
+    this.router.navigate(['/cart'], { queryParams: params });
+  }
+
+  // Reset calculator to initial state
+  resetCalculator(): void {
+    // Reset all selections
+    this.productFamilies.forEach(family => {
+      this.selections[family.name] = {
+        selectedPlan: null,
+        seats: 1,
+        packages: 0,
+        apiCalls: 0,
+        pricing: {
+          basePrice: 0,
+          seatPrice: 0,
+          seatQuantity: 0,
+          packagePrice: 0,
+          packageQuantity: 0,
+          freePackages: 0,
+          apiPrice: 0,
+          apiCalls: 0,
+          total: 0
+        }
+      };
+    });
+    
+    // Reset term and totals
+    this.selectedTerm = '1year';
+    this.totalPrice = 0;
   }
 }

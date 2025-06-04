@@ -1,5 +1,18 @@
 <div class="calculator-container">
-  <h1>Price Estimator</h1>
+  
+  <!-- Configure Mode Header -->
+  <div *ngIf="isConfigureMode" class="configure-header">
+    <button mat-icon-button (click)="backToPricing()" class="back-btn">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-content">
+      <h1>Configure Your {{ sourceProduct }} Plan</h1>
+      <p class="nitro-body-text">Customize your {{ sourcePlan }} configuration and add to cart</p>
+    </div>
+  </div>
+
+  <!-- Standard Calculator Header -->
+  <h1 *ngIf="!isConfigureMode">Price Estimator</h1>
   
   <!-- Term Selection -->
   <div class="term-selector">
@@ -46,7 +59,7 @@
                        class="quantity-input">
                 <div class="price-details" *ngIf="selections[family.name].pricing.seatPrice">
                   <div class="price-display">
-                    {{ selections[family.name].pricing.seatPrice | currency }}/seat/month
+                    {{ selections[family.name].pricing.seatPrice | currency }}/seat/year
                   </div>
                   <div class="tier-info" *ngIf="selections[family.name].seats >= 5">
                     Volume discount applied
@@ -54,7 +67,7 @@
                 </div>
               </div>
               <div class="package-info" *ngIf="selections[family.name].pricing.freePackages">
-                Includes {{ selections[family.name].pricing.freePackages | number }} free packages/seat
+                Includes {{ (selections[family.name].pricing.freePackages / selections[family.name].seats) | number }} packages per seat ({{ selections[family.name].pricing.freePackages | number }} total included)
               </div>
             </div>
 
@@ -103,7 +116,7 @@
                 Volume tier: {{ getVolumeTier(family.name) }}+ seats
               </div>
             </div>
-            <span>{{ selections[family.name].pricing.seatPrice * selections[family.name].seats * 12 | currency }}/year</span>
+            <span>{{ selections[family.name].pricing.seatPrice * selections[family.name].seats | currency }}/year</span>
           </div>
           <div class="breakdown-row packages-row" *ngIf="selections[family.name].pricing.packageQuantity">
             <div class="breakdown-label">
@@ -112,19 +125,27 @@
                 {{ selections[family.name].pricing.freePackages | number }} packages included
               </div>
             </div>
-            <span>{{ selections[family.name].pricing.packageQuantity * selections[family.name].pricing.packagePrice * 12 | currency }}/year</span>
+            <span>{{ selections[family.name].pricing.packageQuantity * selections[family.name].pricing.packagePrice | currency }}/year</span>
           </div>
           <div class="breakdown-row api-row" *ngIf="selections[family.name].pricing.apiCalls">
             <div class="breakdown-label">
               <span>API Calls ({{ selections[family.name].pricing.apiCalls | number }})</span>
               <div class="rate-info">{{ selections[family.name].pricing.apiPrice | currency }}/call</div>
             </div>
-            <span>{{ selections[family.name].pricing.apiCalls * selections[family.name].pricing.apiPrice * 12 | currency }}/year</span>
+            <span>{{ selections[family.name].pricing.apiCalls * selections[family.name].pricing.apiPrice | currency }}/year</span>
           </div>
           <div class="breakdown-total">
             <span>Annual Cost</span>
-            <span>{{ selections[family.name].pricing.total * 12 | currency }}/year</span>
+            <span>{{ selections[family.name].pricing.total | currency }}/year</span>
           </div>
+        </div>
+
+        <!-- Configure Mode Actions -->
+        <div *ngIf="isConfigureMode && selections[family.name].selectedPlan" class="configure-actions">
+          <button mat-raised-button color="primary" (click)="addToCart(family.name)" class="add-to-cart-btn">
+            <mat-icon>add_shopping_cart</mat-icon>
+            Add to Cart
+          </button>
         </div>
       </mat-card-content>
     </mat-card>
@@ -144,7 +165,7 @@
           <div class="product-cost">
             <div class="breakdown">
               <div *ngIf="selections[family.name].seats > 0">
-                {{ selections[family.name].seats }} seats at {{ selections[family.name].pricing.seatPrice | currency }}/seat/month
+                {{ selections[family.name].seats }} seats at {{ selections[family.name].pricing.seatPrice | currency }}/seat/year
               </div>
               <div *ngIf="selections[family.name].pricing.packageQuantity">
                 {{ selections[family.name].pricing.packageQuantity }} packages at {{ selections[family.name].pricing.packagePrice | currency }}/package
@@ -153,7 +174,7 @@
                 {{ selections[family.name].pricing.apiCalls | number }} API calls
               </div>
             </div>
-            <div class="amount">{{ selections[family.name].pricing.total * 12 | currency }}/year</div>
+            <div class="amount">{{ selections[family.name].pricing.total | currency }}/year</div>
           </div>
         </div>
       </ng-container>
@@ -162,15 +183,27 @@
     <div class="grand-total">
       <div class="annual-cost">
         <span>Total Annual Cost</span>
-        <span class="total-amount">{{ totalPrice * 12 | currency }}/year</span>
+        <span class="total-amount">{{ totalPrice | currency }}/year</span>
       </div>
       <div class="monthly-breakdown">
-        ({{ totalPrice | currency }}/month, billed annually)
+        ({{ totalPrice / 12 | currency }}/month, billed annually)
       </div>
     </div>
     
     <div class="term-note" *ngIf="selectedTerm === '3year'">
       * Prices reflect 3-year commitment discount
+    </div>
+
+    <!-- Action buttons for regular calculator mode -->
+    <div *ngIf="!isConfigureMode && hasValidSelections()" class="calculator-actions">
+      <button mat-raised-button color="primary" (click)="addAllToCart()" class="add-to-cart-btn">
+        <mat-icon>add_shopping_cart</mat-icon>
+        Add to Cart
+      </button>
+      <button mat-stroked-button (click)="resetCalculator()" class="reset-btn">
+        <mat-icon>refresh</mat-icon>
+        Start Over
+      </button>
     </div>
   </div>
 </div>

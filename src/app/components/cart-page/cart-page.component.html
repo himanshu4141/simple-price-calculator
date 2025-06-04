@@ -1,5 +1,44 @@
 <div class="cart-page">
-  <div class="cart-form">
+  
+  <!-- Quick Add Confirmation Banner - Fixed Position -->
+  <div *ngIf="showQuickAddConfirmation" class="quick-add-banner">
+    <mat-card class="confirmation-card">
+      <mat-card-content>
+        <div class="confirmation-content">
+          <mat-icon class="success-icon">check_circle</mat-icon>
+          <div class="message">
+            <h3>Plan Added Successfully!</h3>
+            <p>We've added your selected plan with default settings. You can review and modify below.</p>
+          </div>
+          <div class="actions">
+            <button mat-raised-button color="primary" (click)="confirmQuickAdd()">
+              Continue to Checkout
+            </button>
+            <button mat-stroked-button (click)="editQuickAdd()">
+              Edit Configuration
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="cart-form" [class.has-quick-add-banner]="showQuickAddConfirmation">
+    <!-- Calculator Mode Banner -->
+    <div *ngIf="isFromCalculator" class="calculator-banner">
+      <mat-card class="info-card">
+        <mat-card-content>
+          <div class="info-content">
+            <mat-icon class="info-icon">info</mat-icon>
+            <div class="message">
+              <h3>Configure Your Estimated Plans</h3>
+              <p>Review and adjust the configurations from your price estimation below.</p>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
     <h1>Configure Your Plan</h1>
     <div class="term-selector">
       <label>Commitment Term:</label>
@@ -87,7 +126,7 @@
                 </div>
 
                 <div class="package-info" *ngIf="getFreePackages() > 0">
-                  Includes {{ getFreePackages() | number }} free packages
+                  Includes {{ getFreePackagesPerSeat() | number }} packages per seat ({{ getFreePackages() | number }} total included)
                 </div>
               </div>
 
