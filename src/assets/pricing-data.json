@@ -88,7 +88,6 @@
             { "minSeats": 50, "price": 119 }
           ],
           "packagePrice": 1.5,
-          "apiPrice": 0.5,
           "freePackagesPerSeat": 200
         },
         {
@@ -111,7 +110,6 @@
             { "minSeats": 50, "price": 169 }
           ],
           "packagePrice": 1.25,
-          "apiPrice": 0.4,
           "freePackagesPerSeat": 200
         },
         {

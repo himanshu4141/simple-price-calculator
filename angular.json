@@ -24,7 +24,7 @@
               "src/styles.scss"
             ],
             "scripts": [],
-            "baseHref": "/simple-price-calculator/"
+            "baseHref": "/"
           },
           "configurations": {
             "production": {

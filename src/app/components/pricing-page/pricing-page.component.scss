@@ -1,222 +1,487 @@
-/* Styles for the Pricing Page Component */
+/* Nitro-themed Pricing Page with Enhanced Visual Hierarchy */
 
 .pricing-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--nitro-spacing-xl);
+  background: var(--nitro-silver);
+  font-family: "DM Sans", sans-serif;
 }
 
-.pricing-header {
-  text-align: center;
-  margin-bottom: 3rem;
+/* Enhanced header section with unified H1 and commitment toggle */
+.pricing-header-section {
+  background: white;
+  border-radius: 16px;
+  padding: var(--nitro-spacing-3xl);
+  margin-bottom: var(--nitro-spacing-3xl);
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
 
-  h1 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-  }
+  .header-content {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
 
-  .term-label {
-    font-size: 1rem;
-    font-weight: 500;
-    color: #1f2937;
-    margin: 1rem 0 0.5rem;
-  }
+    h1 {
+      font-family: "DM Serif Text", serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: var(--nitro-black);
+      margin-bottom: var(--nitro-spacing-xl);
+      line-height: 1.2;
+    }
 
-  .term-toggle {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1rem;
+    .commitment-container {
+      .commitment-label {
+        font-size: 1.125rem;
+        color: var(--nitro-eclipse);
+        margin-bottom: var(--nitro-spacing-lg);
+        font-weight: 500;
+      }
 
-    button {
-      padding: 0.5rem 1.5rem;
-      border: 2px solid #007bff;
-      background: transparent;
-      color: #007bff;
-      border-radius: 25px;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      .commitment-toggle {
+        display: flex;
+        justify-content: center;
+        gap: var(--nitro-spacing-md);
+        padding: var(--nitro-spacing-xs);
+        background: var(--nitro-mist);
+        border-radius: 12px;
+        max-width: 600px;
+        margin: 0 auto;
 
-      &.active {
-        background: #007bff;
-        color: white;
+        .commitment-btn {
+          flex: 1;
+          padding: var(--nitro-spacing-lg) var(--nitro-spacing-xl);
+          border: 2px solid transparent;
+          background: transparent;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          
+          .term {
+            display: block;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--nitro-eclipse);
+            margin-bottom: var(--nitro-spacing-xs);
+          }
+          
+          .savings {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--nitro-eclipse);
+            opacity: 0.8;
+          }
+
+          &:hover {
+            background: rgba(var(--nitro-orange-rgb), 0.1);
+            transform: translateY(-2px);
+          }
+
+          &.active {
+            background: var(--nitro-orange);
+            color: white;
+            box-shadow: 0 4px 12px rgba(var(--nitro-orange-rgb), 0.3);
+            
+            .term,
+            .savings {
+              color: white;
+            }
+          }
+        }
       }
     }
   }
 }
 
-.product-family {
-  margin-bottom: 4rem;
+/* Products section with improved spacing */
+.products-section {
+  .product-family {
+    margin-bottom: var(--nitro-spacing-3xl);
 
-  h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
+    .family-header {
+      text-align: center;
+      margin-bottom: var(--nitro-spacing-2xl);
 
-  .family-description {
-    font-size: 1.1rem;
-    color: #666;
-    margin-bottom: 2rem;
+      h2 {
+        font-family: "DM Serif Text", serif;
+        font-size: 2.25rem;
+        color: var(--nitro-black);
+        margin-bottom: var(--nitro-spacing-md);
+      }
+
+      .family-description {
+        font-size: 1.125rem;
+        color: var(--nitro-eclipse);
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+    }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: var(--nitro-spacing-xl);
+      margin-top: var(--nitro-spacing-2xl);
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        gap: var(--nitro-spacing-lg);
+      }
+    }
   }
 }
 
-.plans-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-}
-
+/* Enhanced plan cards with better layout */
 .plan-card {
+  background: white;
+  border-radius: 16px;
+  border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   height: 100%;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 2rem;
-  background: white;
-  transition: transform 0.3s ease;
 
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(var(--nitro-black-rgb), 0.12);
+    border-color: rgba(var(--nitro-orange-rgb), 0.3);
   }
 
-  h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
+  .plan-header {
+    padding: var(--nitro-spacing-xl) var(--nitro-spacing-xl) var(--nitro-spacing-lg);
+    border-bottom: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
 
-  .plan-description {
-    color: #666;
-    margin-bottom: 1.5rem;
-  }
-
-  .price {
-    text-align: center;
-    margin-bottom: 1.5rem;
-
-    .amount {
-      font-size: 2.5rem;
-      font-weight: bold;
-      color: #007bff;
+    .plan-name {
+      font-family: "DM Serif Text", serif;
+      font-size: 1.5rem;
+      color: var(--nitro-black);
+      margin-bottom: var(--nitro-spacing-sm);
     }
 
-    .period {
-      font-size: 1rem;
-      color: #666;
-    }
-  }
+    .team-suggestion {
+      display: flex;
+      align-items: center;
+      gap: var(--nitro-spacing-xs);
+      color: var(--nitro-fig);
+      font-size: 0.875rem;
+      font-weight: 500;
 
-  .features {
-    list-style: none;
-    padding: 0;
-    margin-bottom: 1.5rem;
-    min-height: 200px; // Ensure consistent height across plans
-
-    li {
-      padding: 0.5rem 0;
-      color: #444;
-      
-      &:before {
-        content: "✓";
-        color: #28a745;
-        margin-right: 0.5rem;
+      mat-icon {
+        font-size: 1rem;
+        width: 1rem;
+        height: 1rem;
       }
     }
   }
 
-  .plan-card-content {
-    flex: 1 1 auto;
-    min-height: 220px; /* Adjust as needed for consistent height */
-    display: flex;
-    flex-direction: column;
+  .plan-pricing {
+    padding: var(--nitro-spacing-xl);
+    text-align: right;
+    background: linear-gradient(135deg, var(--nitro-sky) 0%, rgba(var(--nitro-mist), 0.5) 100%);
+
+    .price-display {
+      .currency {
+        font-size: 1.25rem;
+        color: var(--nitro-eclipse);
+        vertical-align: top;
+        margin-right: var(--nitro-spacing-xs);
+      }
+
+      .amount {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--nitro-black);
+        line-height: 1;
+      }
+
+      .price-details {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        margin-top: var(--nitro-spacing-xs);
+
+        .period {
+          font-size: 0.875rem;
+          color: var(--nitro-eclipse);
+          margin-bottom: var(--nitro-spacing-xs);
+        }
+
+        .contract-badge {
+          background: var(--nitro-orange);
+          color: white;
+          padding: var(--nitro-spacing-xs) var(--nitro-spacing-sm);
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  .plan-features {
+    padding: var(--nitro-spacing-xl);
+    flex: 1;
+
+    .features-section {
+      margin-bottom: var(--nitro-spacing-xl);
+
+      h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--nitro-black);
+        margin-bottom: var(--nitro-spacing-md);
+      }
+
+      .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+          display: flex;
+          align-items: flex-start;
+          gap: var(--nitro-spacing-sm);
+          margin-bottom: var(--nitro-spacing-sm);
+          
+          mat-icon {
+            color: var(--nitro-pine);
+            font-size: 1.125rem;
+            width: 1.125rem;
+            height: 1.125rem;
+            margin-top: 2px;
+            flex-shrink: 0;
+          }
+
+          span {
+            flex: 1;
+            color: var(--nitro-eclipse);
+            line-height: 1.5;
+          }
+
+          .info-btn {
+            width: 20px;
+            height: 20px;
+            margin-left: var(--nitro-spacing-xs);
+            
+            mat-icon {
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+              color: var(--nitro-eclipse);
+              margin-top: 0;
+            }
+          }
+        }
+      }
+    }
+
+    /* Enhanced Sign product information */
+    .sign-pricing-details {
+      border-top: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+      padding-top: var(--nitro-spacing-lg);
+
+      .included-section,
+      .additional-costs {
+        margin-bottom: var(--nitro-spacing-lg);
+
+        h4 {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--nitro-black);
+          margin-bottom: var(--nitro-spacing-sm);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .included-item,
+        .cost-item {
+          display: flex;
+          align-items: center;
+          gap: var(--nitro-spacing-sm);
+          margin-bottom: var(--nitro-spacing-sm);
+          
+          mat-icon {
+            font-size: 1rem;
+            width: 1rem;
+            height: 1rem;
+            color: var(--nitro-fig);
+          }
+
+          span {
+            flex: 1;
+            font-size: 0.875rem;
+            color: var(--nitro-eclipse);
+          }
+
+          .info-btn {
+            width: 18px;
+            height: 18px;
+            
+            mat-icon {
+              font-size: 12px;
+              width: 12px;
+              height: 12px;
+              color: var(--nitro-eclipse);
+            }
+          }
+        }
+      }
+
+      .additional-costs {
+        .cost-item mat-icon {
+          color: var(--nitro-terracotta);
+        }
+      }
+    }
   }
 
   .plan-footer {
+    padding: var(--nitro-spacing-xl);
+    border-top: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
     display: flex;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-    min-height: 56px; /* Ensures button row is always the same height */
-    margin-top: 1.5rem;
+    flex-direction: column;
+    gap: var(--nitro-spacing-md);
 
-    button {
-      /* Set default button styles */
-      color: #fff;
-      background: #007bff;
-    }
-  }
+    .configure-plan-btn {
+      background: var(--nitro-orange);
+      color: white;
+      border-radius: 8px;
+      font-weight: 600;
+      padding: var(--nitro-spacing-md) var(--nitro-spacing-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--nitro-spacing-sm);
 
-  .plan-footer button.mat-raised-button,
-  .plan-footer button.mat-flat-button {
-    color: #fff !important;
-    background-color: #007bff !important;
-  }
-  .plan-footer button.mat-raised-button:hover,
-  .plan-footer button.mat-flat-button:hover {
-    background-color: #0056b3 !important;
-  }
-
-  .select-plan {
-    width: 100%;
-    padding: 1rem;
-    border: none;
-    border-radius: 4px;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: background 0.3s ease;
-    background-color: #007bff;
-    color: white;
-
-    &:hover {
-      background: #0056b3;
-    }
-  }
-
-  .additional-pricing {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #eee;
-    font-size: 0.9rem;
-    color: #666;
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-top: 1rem;
-
-    p {
-      margin: 0.5rem 0;
-      color: #666;
-      margin: 0.5rem 0;
-      font-size: 0.95rem;
-
-      &:first-child {
-        margin-top: 0;
+      &:hover {
+        background: rgba(var(--nitro-orange-rgb), 0.9);
+        transform: translateY(-1px);
       }
 
-      &:last-child {
-        margin-bottom: 0;
+      mat-icon {
+        font-size: 1.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+      }
+    }
+
+    .quick-add-btn {
+      border-color: var(--nitro-orange);
+      color: var(--nitro-orange);
+      border-radius: 8px;
+      font-weight: 500;
+      padding: var(--nitro-spacing-sm) var(--nitro-spacing-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--nitro-spacing-sm);
+
+      &:hover {
+        background: rgba(var(--nitro-orange-rgb), 0.1);
+      }
+
+      mat-icon {
+        font-size: 1rem;
+        width: 1rem;
+        height: 1rem;
       }
     }
   }
+}
 
-  .contract-badge {
-    display: inline-block;
-    margin-left: 0.5rem;
-    margin-top: 0.25rem;
-    padding: 2px 8px;
-    font-size: 0.85rem;
-    color: #555;
-    background: #f2f2f7;
-    border-radius: 12px;
-    font-weight: 500;
-    vertical-align: middle;
+/* Help CTA section */
+.help-cta-section {
+  margin-top: var(--nitro-spacing-3xl);
+  padding: var(--nitro-spacing-xl);
+  background: var(--nitro-surface-variant);
+  border-radius: var(--nitro-border-radius);
+  text-align: center;
+
+  .help-cta-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--nitro-spacing-md);
+    flex-wrap: wrap;
+
+    mat-icon {
+      color: var(--nitro-primary);
+      font-size: 1.5rem;
+    }
+
+    span {
+      color: var(--nitro-on-surface);
+      font-weight: 500;
+    }
+
+    .help-calculator-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--nitro-spacing-xs);
+      font-weight: 600;
+      
+      mat-icon {
+        font-size: 1.25rem;
+        margin-left: var(--nitro-spacing-xs);
+      }
+
+      &:hover {
+        background-color: var(--nitro-primary-container);
+        color: var(--nitro-on-primary-container);
+      }
+    }
   }
 
-  .plan-divider {
-    margin: 1.5rem 0;
-    border: none;
-    border-top: 1px solid #e0e0e0;
-    width: 80%;
+  @media (max-width: 768px) {
+    .help-cta-content {
+      flex-direction: column;
+      text-align: center;
+    }
+  }
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+  .pricing-page {
+    padding: var(--nitro-spacing-lg);
+  }
+
+  .pricing-header-section {
+    padding: var(--nitro-spacing-xl);
+    
+    .header-content {
+      .commitment-container .commitment-toggle {
+        flex-direction: column;
+        max-width: 300px;
+        
+        .commitment-btn {
+          padding: var(--nitro-spacing-md);
+          
+          .term {
+            font-size: 1rem;
+          }
+          
+          .savings {
+            font-size: 0.8rem;
+          }
+        }
+      }
+    }
+  }
+
+  .plan-card {
+    .plan-pricing .price-display .amount {
+      font-size: 2.5rem;
+    }
+
+    .plan-footer {
+      .configure-plan-btn,
+      .quick-add-btn {
+        padding: var(--nitro-spacing-md);
+        font-size: 0.9rem;
+      }
+    }
   }
 }

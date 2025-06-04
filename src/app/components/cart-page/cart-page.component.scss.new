@@ -327,7 +327,7 @@
     }
   }
 
-  .cart-summary {
+  .order-summary {
     background: white;
     border-radius: 16px;
     padding: 32px;
@@ -346,106 +346,37 @@
       text-align: center;
     }
 
-    .product-totals {
-      margin-bottom: var(--nitro-spacing-xl);
-    }
-
-    .product-total-row {
+    .summary-item {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      padding: var(--nitro-spacing-lg) 0;
-      border-bottom: 1px solid var(--nitro-mist);
-      gap: var(--nitro-spacing-lg);
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(109, 113, 117, 0.1);
 
       &:last-child {
-        margin-bottom: var(--nitro-spacing-lg);
-        border-bottom: 2px solid var(--nitro-mist);
-      }
-
-      .product-info {
-        flex: 1;
-
-        h3 {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: var(--nitro-black);
-          margin: 0 0 var(--nitro-spacing-xs) 0;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .plan-name {
-          font-size: 0.875rem;
-          color: var(--nitro-eclipse);
-          font-family: 'DM Sans', sans-serif;
-        }
-      }
-
-      .product-cost {
-        text-align: right;
-        min-width: 200px;
-
-        .breakdown {
-          font-size: 0.875rem;
-          color: var(--nitro-eclipse);
-          margin-bottom: var(--nitro-spacing-xs);
-          font-family: 'DM Sans', sans-serif;
-          
-          div {
-            margin: 4px 0;
-          }
-        }
-
-        .amount {
-          font-size: 1rem;
-          font-weight: 600;
-          color: var(--nitro-black);
-          font-family: 'DM Sans', sans-serif;
-        }
-      }
-    }
-
-    .grand-total {
-      background: var(--nitro-sky);
-      padding: var(--nitro-spacing-lg);
-      border-radius: 12px;
-      border: 1px solid var(--nitro-mist);
-      margin-bottom: var(--nitro-spacing-lg);
-
-      .annual-cost {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 1.5rem;
+        border-bottom: none;
         font-weight: 600;
+        font-size: 1.125rem;
         color: var(--nitro-black);
-        margin-bottom: var(--nitro-spacing-sm);
-        font-family: 'DM Sans', sans-serif;
-
-        .total-amount {
-          color: var(--nitro-orange);
-        }
+        margin-top: 16px;
+        padding-top: 20px;
+        border-top: 2px solid rgba(109, 113, 117, 0.1);
       }
 
-      .monthly-breakdown {
-        text-align: right;
+      .label {
         color: var(--nitro-eclipse);
-        font-size: 1rem;
-        font-family: 'DM Sans', sans-serif;
+        font-size: 0.95rem;
       }
-    }
 
-    .term-note {
-      margin-bottom: var(--nitro-spacing-lg);
-      font-size: 0.875rem;
-      color: var(--nitro-eclipse);
-      font-style: italic;
-      font-family: 'DM Sans', sans-serif;
-      text-align: center;
+      .value {
+        color: var(--nitro-black);
+        font-weight: 500;
+      }
     }
 
     .checkout-button {
       width: 100%;
+      margin-top: 24px;
       padding: 16px;
       background: linear-gradient(135deg, var(--nitro-orange), #ff6b35);
       color: white;
@@ -466,188 +397,5 @@
         transform: translateY(0);
       }
     }
-  }
-
-  // Enhanced form styling for cart page
-  .form-content {
-    .form-row {
-      margin-bottom: var(--nitro-spacing-lg);
-
-      // Improved Material form field styling
-      ::ng-deep {
-        .mat-mdc-form-field {
-          width: 100%;
-          font-family: 'DM Sans', sans-serif;
-
-          .mat-mdc-text-field-wrapper {
-            background-color: white;
-            border-radius: 12px;
-            padding: 4px 16px;
-            border: 2px solid var(--nitro-mist);
-            transition: all 0.2s ease;
-
-            &:hover {
-              border-color: var(--nitro-orange);
-            }
-          }
-
-          &.mat-focused .mat-mdc-text-field-wrapper {
-            border-color: var(--nitro-orange);
-            box-shadow: 0 0 0 3px rgba(245, 72, 17, 0.1);
-          }
-
-          .mat-mdc-form-field-outline {
-            display: none;
-          }
-
-          .mat-mdc-floating-label {
-            color: var(--nitro-eclipse);
-            font-family: 'DM Sans', sans-serif;
-            font-weight: 500;
-          }
-
-          &.mat-focused .mat-mdc-floating-label {
-            color: var(--nitro-orange);
-          }
-
-          .mat-mdc-input-element {
-            color: var(--nitro-black);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 1rem;
-          }
-        }
-
-        .mat-mdc-select {
-          font-family: 'DM Sans', sans-serif;
-          color: var(--nitro-black);
-        }
-
-        .mat-mdc-select-panel {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-        }
-
-        .mat-mdc-option {
-          font-family: 'DM Sans', sans-serif;
-          
-          &:hover {
-            background-color: rgba(245, 72, 17, 0.1);
-          }
-          
-          &.mat-mdc-option-active {
-            background-color: var(--nitro-orange);
-            color: white;
-          }
-        }
-      }
-    }
-
-    // Enhanced input group styling for cart page
-    .input-group {
-      display: flex;
-      align-items: center;
-      gap: var(--nitro-spacing-md);
-      margin-bottom: var(--nitro-spacing-lg);
-      background: var(--nitro-sky);
-      padding: var(--nitro-spacing-md);
-      border-radius: 12px;
-      border: 1px solid var(--nitro-mist);
-
-      label {
-        min-width: 80px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--nitro-eclipse);
-        font-family: 'DM Sans', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .quantity-input {
-        width: 100px;
-        height: 42px;
-        padding: 0 var(--nitro-spacing-sm);
-        border: 2px solid white;
-        border-radius: 8px;
-        font-size: 1rem;
-        text-align: center;
-        color: var(--nitro-black);
-        font-family: 'DM Sans', sans-serif;
-        background: white;
-        font-weight: 500;
-        transition: all 0.2s ease;
-
-        &:focus {
-          border-color: var(--nitro-orange);
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(245, 72, 17, 0.1);
-        }
-
-        &:hover {
-          border-color: var(--nitro-orange);
-        }
-      }
-
-      .price-details {
-        margin-left: auto;
-        text-align: right;
-
-        .price-display {
-          color: var(--nitro-black);
-          font-size: 0.875rem;
-          font-weight: 600;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .tier-info {
-          font-size: 0.75rem;
-          color: var(--nitro-pine);
-          margin-top: 2px;
-          font-weight: 500;
-          background: rgba(0, 180, 118, 0.1);
-          padding: 2px 8px;
-          border-radius: 4px;
-          display: inline-block;
-        }
-      }
-    }
-  }
-
-  // Enhanced product card styling for cart page
-  .product-card {
-    ::ng-deep {
-      .mat-mdc-card-header {
-        background: linear-gradient(135deg, var(--nitro-orange), #ff6b35);
-        color: white;
-        padding: var(--nitro-spacing-lg);
-        
-        .mat-mdc-card-title {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin: 0;
-          color: white;
-        }
-      }
-
-      .mat-mdc-card-content {
-        padding: var(--nitro-spacing-lg);
-      }
-    }
-  }
-
-  // Package info styling similar to volume discount for cart page
-  .package-info {
-    margin-top: var(--nitro-spacing-sm);
-    padding: var(--nitro-spacing-sm) var(--nitro-spacing-md);
-    background: rgba(0, 180, 118, 0.1);
-    border: 1px solid var(--nitro-pine);
-    border-radius: 8px;
-    color: var(--nitro-pine);
-    font-size: 0.875rem;
-    font-weight: 500;
-    font-family: 'DM Sans', sans-serif;
-    text-align: center;
   }
 }

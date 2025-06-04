@@ -10,7 +10,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "sourceMap": true,
-    "suppressImplicitAnyIndexErrors": true,
     "strict": true,
     "noImplicitAny": true,
     "skipLibCheck": true
