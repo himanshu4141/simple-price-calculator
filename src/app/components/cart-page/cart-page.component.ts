@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { PricingService } from '../../services/pricing.service';
+import { PricingService, EstimateRequest, EstimateItemRequest } from '../../services/pricing.service';
 import { ProductFamily, CartItem, Plan } from '../../models/pricing.model';
 
 @Component({
@@ -30,9 +30,9 @@ export class CartPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.pricingService.fetchPricingData().subscribe(data => {
-      if (data && Array.isArray(data.productFamilies)) {
-        this.productFamilies = data.productFamilies;
+    this.pricingService.fetchPricingData('USD').subscribe(response => {
+      if (response && Array.isArray(response.productFamilies)) {
+        this.productFamilies = response.productFamilies;
         // Get selected plan from URL params if available
         this.route.queryParams.subscribe(params => {
           // Handle new parameter structure from calculator

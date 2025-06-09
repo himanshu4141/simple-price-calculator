@@ -57,8 +57,8 @@ export class PriceCalculatorComponent implements OnInit {
     });
 
     // Load pricing data
-    this.pricingService.fetchPricingData().subscribe(data => {
-      this.productFamilies = data.productFamilies;
+    this.pricingService.fetchPricingData('USD').subscribe(response => {
+      this.productFamilies = response.productFamilies;
       // Initialize selections for each product family
       this.productFamilies.forEach(family => {
         this.selections[family.name] = {

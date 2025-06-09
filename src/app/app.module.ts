@@ -19,11 +19,13 @@ import { AppComponent } from './app.component';
 import { PricingPageComponent } from './components/pricing-page/pricing-page.component';
 import { CartPageComponent } from './components/cart-page/cart-page.component';
 import { PriceCalculatorComponent } from './components/price-calculator/price-calculator.component';
+import { ApiTestComponent } from './components/api-test/api-test.component';
 
 const routes: Routes = [
   { path: '', component: PricingPageComponent },
   { path: 'cart', component: CartPageComponent },
-  { path: 'calculator', component: PriceCalculatorComponent }
+  { path: 'calculator', component: PriceCalculatorComponent },
+  { path: 'api-test', component: ApiTestComponent }
 ];
 
 @NgModule({
@@ -31,7 +33,8 @@ const routes: Routes = [
     AppComponent,
     PricingPageComponent,
     CartPageComponent,
-    PriceCalculatorComponent
+    PriceCalculatorComponent,
+    ApiTestComponent
   ],
   imports: [
     BrowserModule,

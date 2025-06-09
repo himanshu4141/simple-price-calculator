@@ -22,13 +22,14 @@ export class PricingPageComponent implements OnInit {
   }
 
   fetchPricingData(): void {
-    this.pricingService.fetchPricingData().subscribe(data => {
-      if (data && Array.isArray(data.productFamilies)) {
-        this.productFamilies = data.productFamilies;
+    this.pricingService.fetchPricingData('USD').subscribe(response => {
+      if (response && Array.isArray(response.productFamilies)) {
+        this.productFamilies = response.productFamilies;
       } else {
         this.productFamilies = [];
       }
     }, err => {
+      console.error('Error fetching pricing data:', err);
       this.productFamilies = [];
     });
   }
