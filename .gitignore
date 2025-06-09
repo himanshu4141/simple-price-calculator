@@ -157,3 +157,38 @@ yarn-error.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Scala & SBT
+target/
+project/target/
+project/project/target/
+.history
+.cache
+.lib/
+dist/
+.scala_dependencies
+.worksheet
+
+# Metals (Scala Language Server)
+.metals/
+.bloop/
+metals.sbt
+
+# Scala CLI
+.scala-build/
+
+# BSP (Build Server Protocol)
+.bsp/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

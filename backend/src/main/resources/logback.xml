@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender for development -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger level -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Application loggers -->
+    <logger name="com.nitro.pricing" level="INFO" />
+    
+    <!-- Pekko loggers -->
+    <logger name="org.apache.pekko" level="INFO" />
+    <logger name="akka" level="INFO" />
+    
+    <!-- HTTP client loggers -->
+    <logger name="sttp.client3" level="INFO" />
+    
+    <!-- Netty loggers - Set io.netty.buffer to INFO level -->
+    <logger name="io.netty.buffer" level="INFO" />
+    <logger name="io.netty" level="WARN" />
+    
+    <!-- Third-party loggers -->
+    <logger name="com.typesafe.config" level="WARN" />
+    <logger name="org.asynchttpclient" level="WARN" />
+</configuration>

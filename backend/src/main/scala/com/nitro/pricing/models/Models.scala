@@ -120,6 +120,32 @@ case class TaxLineItemResponse(
   total: Money
 )
 
+// Pricing API models
+case class RampPrice(minSeats: Int, price: BigDecimal)
+
+case class PricingPlan(
+  name: String,
+  description: String,
+  features: List[String],
+  oneYearPricing: List[RampPrice],
+  threeYearPricing: List[RampPrice],
+  packagePrice: Option[BigDecimal] = None,
+  apiPrice: Option[BigDecimal] = None,
+  freePackagesPerSeat: Option[Int] = None
+)
+
+case class PricingProductFamily(
+  name: String,
+  description: String,
+  plans: List[PricingPlan]
+)
+
+case class PricingApiResponse(
+  productFamilies: List[PricingProductFamily],
+  supportedCurrencies: List[String],
+  lastUpdated: String
+)
+
 // Chargebee Product Catalog 2.0 models
 case class ChargebeeItem(
   id: String,
@@ -292,6 +318,19 @@ object JsonCodecs {
   
   implicit val taxResponseEncoder: Encoder[TaxResponse] = deriveEncoder[TaxResponse]
   implicit val taxResponseDecoder: Decoder[TaxResponse] = deriveDecoder[TaxResponse]
+  
+  // Pricing API types
+  implicit val rampPriceEncoder: Encoder[RampPrice] = deriveEncoder[RampPrice]
+  implicit val rampPriceDecoder: Decoder[RampPrice] = deriveDecoder[RampPrice]
+  
+  implicit val pricingPlanEncoder: Encoder[PricingPlan] = deriveEncoder[PricingPlan]
+  implicit val pricingPlanDecoder: Decoder[PricingPlan] = deriveDecoder[PricingPlan]
+  
+  implicit val pricingProductFamilyEncoder: Encoder[PricingProductFamily] = deriveEncoder[PricingProductFamily]
+  implicit val pricingProductFamilyDecoder: Decoder[PricingProductFamily] = deriveDecoder[PricingProductFamily]
+  
+  implicit val pricingApiResponseEncoder: Encoder[PricingApiResponse] = deriveEncoder[PricingApiResponse]
+  implicit val pricingApiResponseDecoder: Decoder[PricingApiResponse] = deriveDecoder[PricingApiResponse]
   
   // Chargebee Product Catalog 2.0 types
   implicit val chargebeeItemPriceTierEncoder: Encoder[ChargebeeItemPriceTier] = deriveEncoder[ChargebeeItemPriceTier]
