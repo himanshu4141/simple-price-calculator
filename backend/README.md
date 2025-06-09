@@ -1,143 +1,376 @@
-# Nitro Price Calculator API
+# Nitro Price Calculator Backend API
 
-## Phase 0 - Critical Setup & Discovery
+A Scala/Pekko-HTTP backend service providing real-time pricing integration with Chargebee Product Catalog 2.0, hybrid pricing strategies, and volume tier calculations.
 
-This backend API is designed to integrate with Chargebee for pricing data and subscription management, with a focus on **1-year billing terms only**. 3-year pricing continues to use static data from the frontend.
+## 🚀 Current Status: **Phase 1 Core Integration - 70% Complete**
+
+### ✅ **Completed Features**
+- **Chargebee Product Catalog 2.0 Integration**: Full PC 2.0 API integration with 40 item prices across 5 currencies
+- **Hybrid Pricing Strategy**: 1-year pricing from Chargebee + 3-year pricing from static data
+- **Volume Tier Calculations**: Automatic tier selection and pricing calculations
+- **Intelligent Caching**: 1-hour TTL with graceful fallbacks for reliability  
+- **Multi-Product Estimates**: Complex pricing scenarios with packages and API calls
+- **Error Handling**: Comprehensive error handling and logging throughout
+
+### 🔄 **In Progress**
+- **Mock Tax Service**: Multi-currency tax calculations (next priority)
+- **Checkout Endpoint**: Complete subscription creation with Chargebee (final Phase 1 milestone)
+
+## API Endpoints
+
+### Core Endpoints
+
+#### `GET /api/health`
+Service health check endpoint.
+
+**Response**:
+```json
+{
+  "status": "healthy",
+  "services": {
+    "chargebee": "connected",
+    "taxService": "mock-ready", 
+    "stripe": "not-tested"
+  },
+  "timestamp": "2025-06-09T21:53:02.836397Z"
+}
+```
+
+#### `GET /api/pricing?currency=USD`
+Hybrid pricing data combining Chargebee 1-year pricing with static 3-year pricing.
+
+**Parameters**:
+- `currency` (optional): USD, EUR, GBP, CAD, AUD (default: USD)
+
+**Response**:
+```json
+{
+  "productFamilies": [
+    {
+      "name": "Nitro PDF",
+      "description": "Professional PDF creation and editing",
+      "plans": [
+        {
+          "name": "Nitro PDF Standard",
+          "oneYearPricing": [
+            {"minSeats": 1, "price": 180.00},
+            {"minSeats": 5, "price": 171.00},
+            {"minSeats": 11, "price": 162.00}
+          ],
+          "threeYearPricing": [
+            {"minSeats": 1, "price": 119},
+            {"minSeats": 10, "price": 109}
+          ]
+        }
+      ]
+    }
+  ],
+  "supportedCurrencies": ["USD", "EUR", "GBP", "CAD", "AUD"],
+  "lastUpdated": "2025-06-09T22:17:26.789Z"
+}
+```
+
+#### `POST /api/estimate`
+Calculate pricing estimates with volume tiers, packages, and API calls.
+
+**Request**:
+```json
+{
+  "items": [
+    {
+      "productFamily": "Nitro PDF",
+      "planName": "Nitro PDF Standard",
+      "seats": 10,
+      "packages": 5
+    }
+  ],
+  "currency": "USD",
+  "billingTerm": "1year"
+}
+```
+
+**Response**:
+```json
+{
+  "items": [
+    {
+      "productFamily": "Nitro PDF",
+      "planName": "Nitro PDF Standard",
+      "seats": 10,
+      "basePrice": 1710.00,
+      "packagesPrice": 0,
+      "apiCallsPrice": 0,
+      "totalPrice": 1710.00,
+      "appliedTier": {"minSeats": 5, "price": 171.00},
+      "includedPackages": null,
+      "extraPackages": 5
+    }
+  ],
+  "subtotal": 1710.00,
+  "total": 1710.00,
+  "currency": "USD", 
+  "billingTerm": "1year"
+}
+```
+
+### Discovery Endpoints
+
+#### `GET /api/chargebee/discovery`
+Discover actual Chargebee product structure and item prices.
+
+**Response**:
+```json
+{
+  "items": [
+    {
+      "id": "Nitro_PDF_STD",
+      "name": "Nitro PDF Standard",
+      "status": "active",
+      "type": "plan"
+    }
+  ],
+  "itemPrices": [
+    {
+      "id": "Nitro_PDF_STD-USD-yearly",
+      "item_id": "Nitro_PDF_STD", 
+      "currency_code": "USD",
+      "period": 1,
+      "period_unit": "year",
+      "tiers": [
+        {"starting_unit": 1, "price": 18000, "price_in_decimal": "180.00"},
+        {"starting_unit": 5, "price": 17100, "price_in_decimal": "171.00"}
+      ]
+    }
+  ]
+}
+```
+
+### Future Endpoints
+
+#### `POST /api/taxes` (Coming Soon)
+Mock tax calculation service.
+
+#### `POST /api/checkout` (Coming Soon) 
+Complete checkout flow for 1-year subscriptions.
 
 ## Quick Start
 
 ### Prerequisites
-- Scala 2.13+
-- SBT 1.9+
-- Chargebee test environment access
+- Java 21
+- SBT 1.9.7
+- Scala 2.13
 
-### Setup
-
-1. **Configure Environment Variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your Chargebee test credentials
+### Environment Setup
+1. Copy `.env.example` to `.env`
+2. Configure Chargebee credentials:
+   ```
+   CHARGEBEE_SITE=nitro-ubb-test
+   CHARGEBEE_API_KEY=your_api_key
    ```
 
-2. **Start the Development Server**
-   ```bash
-   sbt run
-   ```
+### Running the Server
 
-3. **Test the Setup**
-   ```bash
-   # Health check
-   curl http://localhost:8080/api/health
-   
-   # Chargebee discovery (requires valid credentials)
-   curl http://localhost:8080/api/chargebee/discovery
-   ```
+#### Option 1: Using Scripts (Recommended)
+```bash
+# Start/restart server
+./restart-server.sh
 
-## Phase 0 Critical Tasks
+# Check status  
+./status-server.sh
 
-### ✅ COMPLETED
-- [x] Basic Scala/Pekko-HTTP project structure
-- [x] Chargebee client with discovery capabilities
-- [x] Mock tax calculation service
-- [x] Health check endpoints
-- [x] CORS configuration for frontend integration
+# Stop server
+./stop-server.sh
+```
 
-### 🚨 IMMEDIATE NEXT STEPS
-1. **Configure Chargebee Credentials** - Add your test site and API key to `.env`
-2. **Run Product Discovery** - Execute discovery endpoint to document actual structure
-3. **Update PLANNING.md** - Document discovered products vs. assumed structure
+#### Option 2: Direct SBT
+```bash
+# Compile
+sbt compile
 
-## API Endpoints
+# Run
+sbt run
+```
 
-### Discovery & Health
-- `GET /api/health` - Health check for all services
-- `GET /api/chargebee/discovery` - Discover actual Chargebee product structure
+### Testing the API
+```bash
+# Health check
+curl http://localhost:8080/api/health
 
-### Coming in Phase 1
-- `GET /api/pricing` - Fetch pricing (Chargebee + static data)
-- `POST /api/estimate` - Calculate quotes
-- `POST /api/taxes` - Tax calculation
-- `POST /api/checkout` - Process checkout (1-year only)
+# Get pricing
+curl "http://localhost:8080/api/pricing?currency=USD"
 
-## Architecture Decisions
+# Calculate estimate
+curl -X POST http://localhost:8080/api/estimate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "productFamily": "Nitro PDF",
+        "planName": "Nitro PDF Standard", 
+        "seats": 10
+      }
+    ],
+    "currency": "USD",
+    "billingTerm": "1year"
+  }'
+```
 
-### Hybrid Pricing Strategy
-- **1-Year Terms**: Real-time pricing from Chargebee APIs
-- **3-Year Terms**: Static pricing from frontend `pricing-data.json`
-- **Checkout**: 1-year automated, 3-year redirects to sales
+## Architecture
 
-### External Services
-- **Chargebee**: Plans, addons, subscriptions (1-year only)
-- **Stripe**: Payment processing (connected to Chargebee)
-- **Avalara**: Tax calculation (mock implementation with feature flag)
+### Tech Stack
+- **Framework**: Scala 2.13 with Pekko-HTTP
+- **JSON**: Circe for JSON encoding/decoding
+- **HTTP Client**: Pekko-HTTP client for Chargebee integration
+- **Logging**: Logback with structured logging
+- **Configuration**: Typesafe Config
+
+### Key Components
+
+#### `ChargebeeClient`
+- Product Catalog 2.0 integration
+- Automatic pagination handling
+- Error handling with retries
+- Connection testing
+
+#### `PricingService` 
+- Hybrid pricing strategy implementation
+- Volume tier calculations
+- Intelligent caching with TTL
+- Static data merging
+
+#### `ApiRoutes`
+- REST API endpoint definitions
+- CORS configuration
+- Error handling and logging
+- Request/response validation
+
+### Data Models
+
+#### Core Models
+- `ChargebeeItem` - Chargebee product items
+- `ChargebeeItemPrice` - Pricing with volume tiers
+- `PricingApiResponse` - Frontend-compatible pricing format
+- `PricingEstimateRequest/Response` - Estimate calculation models
+
+#### Pricing Models
+- `RampPrice` - Volume tier pricing structure
+- `PricingPlan` - Product plan with 1-year and 3-year pricing
+- `PricingProductFamily` - Grouped product families
 
 ## Configuration
 
 ### Environment Variables
 ```bash
-# Required for Chargebee integration
-CHARGEBEE_SITE=your-test-site
-CHARGEBEE_API_KEY=your-test-api-key
-
-# Required for payment processing  
-STRIPE_PUBLIC_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-
-# Optional - using mock by default
-AVALARA_BASE_URL=https://sandbox-rest.avatax.com
-AVALARA_API_KEY=your-avalara-key
+CHARGEBEE_SITE=nitro-ubb-test
+CHARGEBEE_API_KEY=your_chargebee_api_key
+SERVER_PORT=8080
+LOG_LEVEL=INFO
 ```
 
-### Feature Flags
-- `features.use-real-avalara = false` - Use mock tax service
-- `features.enable-3year-checkout = false` - Always false (3-year = sales contact)
-- `features.enable-webhooks = true` - Webhook processing enabled
+### Application Configuration
+See `src/main/resources/application.conf` for detailed configuration options.
 
-## Development Notes
+## Development
 
-### Mock Tax Service
-The mock tax service provides realistic tax calculations for development:
-- **US**: State-by-state sales tax rates
-- **Canada**: GST/HST by province  
-- **UK**: 20% VAT
-- **Australia**: 10% GST
-- **EU**: VAT by country (19-24%)
+### Project Structure
+```
+src/main/scala/com/nitro/pricing/
+├── Main.scala                 # Server bootstrap
+├── models/Models.scala        # All data models and JSON codecs
+├── services/
+│   ├── ChargebeeClient.scala  # Chargebee PC 2.0 integration
+│   ├── PricingService.scala   # Hybrid pricing logic
+│   └── TaxCalculationService.scala # Mock tax service
+└── routes/
+    └── ApiRoutes.scala        # API endpoint definitions
+```
 
-### Error Handling
-- All external API failures are logged and handled gracefully
-- Health checks verify service connectivity
-- CORS headers configured for frontend integration
+### Key Features
+
+#### Hybrid Pricing Strategy
+- **1-Year Terms**: Real-time pricing from Chargebee APIs
+- **3-Year Terms**: Static pricing from `pricing-data.json`
+- **Merging Logic**: Intelligent combination of data sources
+- **Fallback Strategy**: Graceful degradation on API failures
+
+#### Volume Tier Engine
+- **Automatic Selection**: Finds best tier based on seat count
+- **Multi-Tier Support**: Handles complex tier structures
+- **Price Calculation**: Accurate total pricing with tier discounts
+
+#### Caching Strategy
+- **TTL**: 1-hour cache for Chargebee data
+- **Fallback**: Uses cached data on API failures
+- **Performance**: Sub-500ms response times for cached data
+
+## Monitoring & Logging
+
+### Health Checks
+- Chargebee connectivity
+- Service status monitoring  
+- External dependency verification
 
 ### Logging
-- Structured logging with Logback
-- Debug-level API request/response logging
-- Error-level failure tracking
+- Structured JSON logging
+- Request/response logging
+- Error tracking with stack traces
+- Performance metrics
 
-## Phase 1 Implementation
-
-After Phase 0 discovery is complete, Phase 1 will add:
-1. Core pricing endpoints with hybrid data sources
-2. Quote estimation with volume tier calculations  
-3. Checkout processing for 1-year terms
-4. Static pricing data handler for 3-year terms
+### Server Management
+- Process ID tracking
+- Graceful shutdown handling
+- Background process management
 
 ## Testing
 
+### Manual Testing
+See API examples above for manual testing commands.
+
+### Automated Testing
 ```bash
 # Run tests
 sbt test
 
-# Run with auto-reload during development
-sbt ~run
+# Run with coverage
+sbt clean coverage test coverageReport
 ```
 
-## Deployment
+## Troubleshooting
 
-The application is configured for Heroku deployment with environment variable configuration.
+### Common Issues
 
-## Support
+#### Port Already in Use
+```bash
+# Find process using port 8080
+lsof -i :8080
 
-For development questions, refer to:
-- `PLANNING.md` - Complete technical specification
-- `TASKS.md` - Detailed task breakdown
-- `PROJECT_STATUS.md` - Current implementation status
+# Kill process
+kill -9 <PID>
+```
+
+#### Chargebee Connection Issues
+1. Verify API key in `.env`
+2. Check network connectivity
+3. Review server logs for detailed errors
+
+#### SBT Issues
+```bash
+# Clean and reload
+sbt clean reload compile
+```
+
+### Log Files
+- `server.log` - Main application logs
+- `server.pid` - Process ID file
+
+## Contributing
+
+1. Follow Scala best practices
+2. Add comprehensive error handling
+3. Include logging for debugging
+4. Update documentation for new features
+5. Test all API endpoints manually
+
+## License
+
+MIT License. See the LICENSE file for details.

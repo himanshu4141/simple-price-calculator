@@ -8,7 +8,7 @@ import org.apache.pekko.http.scaladsl.model.HttpMethods._
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService}
 import com.nitro.pricing.models.JsonCodecs._
-import com.nitro.pricing.models.{HealthResponse, ServiceStatus}
+import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe._
 import scala.concurrent.ExecutionContext
@@ -31,6 +31,7 @@ class ApiRoutes(
     pathPrefix("api") {
       concat(
         pricingRoutes,
+        estimateRoutes,
         discoveryRoutes,
         healthRoutes,
         corsRoute
@@ -63,6 +64,30 @@ class ApiRoutes(
                 "message" -> Json.fromString(ex.getMessage)
               )
               complete(StatusCodes.InternalServerError, errorResponse)
+          }
+        }
+      }
+    }
+  }
+
+  private val estimateRoutes: Route = {
+    path("estimate") {
+      post {
+        entity(as[PricingEstimateRequest]) { request =>
+          logger.info(s"Estimate request received: ${request.items.length} items, currency: ${request.currency}, term: ${request.billingTerm}")
+          
+          onComplete(pricingService.calculateEstimate(request)) {
+            case Success(estimateResponse) =>
+              logger.info(s"Estimate calculated successfully: subtotal ${estimateResponse.subtotal}, total ${estimateResponse.total}")
+              complete(StatusCodes.OK, estimateResponse)
+              
+            case Failure(ex) =>
+              logger.error("Estimate calculation failed", ex)
+              val errorResponse = Json.obj(
+                "error" -> Json.fromString("Failed to calculate estimate"),
+                "message" -> Json.fromString(ex.getMessage)
+              )
+              complete(StatusCodes.BadRequest, errorResponse)
           }
         }
       }

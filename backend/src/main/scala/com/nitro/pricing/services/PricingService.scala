@@ -1,6 +1,6 @@
 package com.nitro.pricing.services
 
-import com.nitro.pricing.models.{ProductStructure, ChargebeeItem, ChargebeeItemPrice, RampPrice, PricingPlan, PricingProductFamily, PricingApiResponse}
+import com.nitro.pricing.models.{ProductStructure, ChargebeeItem, ChargebeeItemPrice, RampPrice, PricingPlan, PricingProductFamily, PricingApiResponse, PricingEstimateRequest, PricingEstimateResponse, PricingEstimateItemRequest, PricingEstimateItemResponse}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.parser.decode
 import io.circe.generic.auto._
@@ -39,6 +39,28 @@ class PricingService(
         productFamilies = mergedProductFamilies,
         supportedCurrencies = List("USD", "EUR", "GBP", "CAD", "AUD"),
         lastUpdated = java.time.Instant.now().toString
+      )
+    }
+  }
+  
+  def calculateEstimate(request: PricingEstimateRequest): Future[PricingEstimateResponse] = {
+    logger.info(s"Calculating estimate for ${request.items.length} items, currency: ${request.currency}, term: ${request.billingTerm}")
+    
+    for {
+      pricingData <- getPricing(request.currency)
+    } yield {
+      val itemResponses = request.items.map { item =>
+        calculateItemEstimate(item, pricingData, request.billingTerm)
+      }
+      
+      val subtotal = itemResponses.map(_.totalPrice).sum
+      
+      PricingEstimateResponse(
+        items = itemResponses,
+        subtotal = subtotal,
+        total = subtotal, // Tax calculation will be added later
+        currency = request.currency,
+        billingTerm = request.billingTerm
       )
     }
   }
@@ -165,5 +187,67 @@ class PricingService(
         logger.warn(s"No item prices found for $itemId. Available items: ${chargebeePricingMap.keys.mkString(", ")}")
         None
     }
+  }
+  
+  private def calculateItemEstimate(
+    item: PricingEstimateItemRequest,
+    pricingData: PricingApiResponse,
+    billingTerm: String
+  ): PricingEstimateItemResponse = {
+    
+    // Find the product family and plan
+    val productFamily = pricingData.productFamilies.find(_.name == item.productFamily)
+      .getOrElse(throw new IllegalArgumentException(s"Product family not found: ${item.productFamily}"))
+    
+    val plan = productFamily.plans.find(_.name == item.planName)
+      .getOrElse(throw new IllegalArgumentException(s"Plan not found: ${item.planName}"))
+    
+    // Select pricing based on billing term
+    val pricing = billingTerm match {
+      case "1year" => plan.oneYearPricing
+      case "3year" => plan.threeYearPricing
+      case _ => throw new IllegalArgumentException(s"Invalid billing term: $billingTerm")
+    }
+    
+    // Find applicable tier
+    val appliedTier = pricing
+      .filter(_.minSeats <= item.seats)
+      .maxByOption(_.minSeats)
+      .getOrElse(throw new IllegalArgumentException(s"No pricing tier found for ${item.seats} seats"))
+    
+    // Calculate base price
+    val basePrice = appliedTier.price * item.seats
+    
+    // Calculate packages price
+    val (packagesPrice, includedPackages, extraPackages) = plan.freePackagesPerSeat match {
+      case Some(freePerSeat) =>
+        val totalIncluded = freePerSeat * item.seats
+        val requestedPackages = item.packages.getOrElse(0)
+        val extra = math.max(0, requestedPackages - totalIncluded)
+        val packageCost = extra * plan.packagePrice.getOrElse(BigDecimal(0))
+        (packageCost, Some(totalIncluded), Some(extra))
+      case None =>
+        val packageCost = item.packages.getOrElse(0) * plan.packagePrice.getOrElse(BigDecimal(0))
+        (packageCost, None, item.packages)
+    }
+    
+    // Calculate API calls price
+    val apiCallsPrice = item.apiCalls.getOrElse(0) * plan.apiPrice.getOrElse(BigDecimal(0))
+    
+    // Total price for this item
+    val totalPrice = basePrice + packagesPrice + apiCallsPrice
+    
+    PricingEstimateItemResponse(
+      productFamily = item.productFamily,
+      planName = item.planName,
+      seats = item.seats,
+      basePrice = basePrice,
+      packagesPrice = packagesPrice,
+      apiCallsPrice = apiCallsPrice,
+      totalPrice = totalPrice,
+      appliedTier = appliedTier,
+      includedPackages = includedPackages,
+      extraPackages = extraPackages
+    )
   }
 }

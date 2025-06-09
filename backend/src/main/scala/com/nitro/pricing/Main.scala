@@ -49,6 +49,7 @@ object Main extends App with LazyLogging {
       logger.info("API endpoints available:")
       logger.info("  GET  /api/health - Health check")
       logger.info("  GET  /api/pricing - Fetch pricing data (hybrid Chargebee + static)")
+      logger.info("  POST /api/estimate - Calculate price estimates")
       logger.info("  GET  /api/chargebee/discovery - Discover Chargebee products")
 
       

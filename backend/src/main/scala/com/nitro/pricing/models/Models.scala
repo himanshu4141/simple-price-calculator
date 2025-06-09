@@ -71,53 +71,40 @@ case class EstimateItemResponse(
   appliedTier: PricingTier
 )
 
-case class PricingResponse(
-  plans: List[Plan],
-  addons: List[Addon],
-  supportedCurrencies: List[String],
-  lastUpdated: String
+// Pricing estimate API models (different from legacy addon-based estimates)
+case class PricingEstimateItemRequest(
+  productFamily: String,
+  planName: String,
+  seats: Int,
+  packages: Option[Int] = None,
+  apiCalls: Option[Int] = None
 )
 
-// Tax calculation models
-case class TaxRequest(
-  customerAddress: Address,
-  lineItems: List[TaxLineItem],
-  currency: String
+case class PricingEstimateRequest(
+  items: List[PricingEstimateItemRequest],
+  currency: String = "USD",
+  billingTerm: String = "1year" // "1year" or "3year"
 )
 
-case class Address(
-  line1: String,
-  line2: Option[String] = None,
-  city: String,
-  state: String,
-  postalCode: String,
-  country: String
+case class PricingEstimateItemResponse(
+  productFamily: String,
+  planName: String,
+  seats: Int,
+  basePrice: BigDecimal,
+  packagesPrice: BigDecimal,
+  apiCallsPrice: BigDecimal,
+  totalPrice: BigDecimal,
+  appliedTier: RampPrice,
+  includedPackages: Option[Int] = None,
+  extraPackages: Option[Int] = None
 )
 
-case class TaxLineItem(
-  description: String,
-  amount: Money,
-  taxable: Boolean = true
-)
-
-case class TaxResponse(
-  totalTax: Money,
-  taxBreakdown: List[TaxBreakdownItem],
-  lineItems: List[TaxLineItemResponse]
-)
-
-case class TaxBreakdownItem(
-  taxType: String,
-  rate: BigDecimal,
-  amount: Money,
-  jurisdiction: String
-)
-
-case class TaxLineItemResponse(
-  description: String,
-  subtotal: Money,
-  taxAmount: Money,
-  total: Money
+case class PricingEstimateResponse(
+  items: List[PricingEstimateItemResponse],
+  subtotal: BigDecimal,
+  total: BigDecimal,
+  currency: String,
+  billingTerm: String
 )
 
 // Pricing API models
@@ -257,6 +244,48 @@ case class HealthResponse(
   error: Option[String] = None
 )
 
+// Tax calculation models
+case class Address(
+  line1: String,
+  line2: Option[String] = None,
+  city: String,
+  state: String,
+  postalCode: String,
+  country: String
+)
+
+case class TaxLineItem(
+  description: String,
+  amount: Money,
+  taxable: Boolean = true
+)
+
+case class TaxRequest(
+  customerAddress: Address,
+  lineItems: List[TaxLineItem],
+  currency: String
+)
+
+case class TaxBreakdownItem(
+  name: String,
+  rate: BigDecimal,
+  amount: Money,
+  description: String
+)
+
+case class TaxLineItemResponse(
+  description: String,
+  subtotal: Money,
+  taxAmount: Money,
+  total: Money
+)
+
+case class TaxResponse(
+  totalTax: Money,
+  taxBreakdown: List[TaxBreakdownItem],
+  lineItems: List[TaxLineItemResponse]
+)
+
 // JSON codecs
 object JsonCodecs {
   
@@ -297,8 +326,8 @@ object JsonCodecs {
   implicit val estimateResponseEncoder: Encoder[EstimateResponse] = deriveEncoder[EstimateResponse]
   implicit val estimateResponseDecoder: Decoder[EstimateResponse] = deriveDecoder[EstimateResponse]
   
-  implicit val pricingResponseEncoder: Encoder[PricingResponse] = deriveEncoder[PricingResponse]
-  implicit val pricingResponseDecoder: Decoder[PricingResponse] = deriveDecoder[PricingResponse]
+  implicit val pricingApiResponseEncoder: Encoder[PricingApiResponse] = deriveEncoder[PricingApiResponse]
+  implicit val pricingApiResponseDecoder: Decoder[PricingApiResponse] = deriveDecoder[PricingApiResponse]
   
   // Tax calculation types
   implicit val addressEncoder: Encoder[Address] = deriveEncoder[Address]
@@ -329,8 +358,18 @@ object JsonCodecs {
   implicit val pricingProductFamilyEncoder: Encoder[PricingProductFamily] = deriveEncoder[PricingProductFamily]
   implicit val pricingProductFamilyDecoder: Decoder[PricingProductFamily] = deriveDecoder[PricingProductFamily]
   
-  implicit val pricingApiResponseEncoder: Encoder[PricingApiResponse] = deriveEncoder[PricingApiResponse]
-  implicit val pricingApiResponseDecoder: Decoder[PricingApiResponse] = deriveDecoder[PricingApiResponse]
+  // Pricing estimate API types
+  implicit val pricingEstimateItemRequestEncoder: Encoder[PricingEstimateItemRequest] = deriveEncoder[PricingEstimateItemRequest]
+  implicit val pricingEstimateItemRequestDecoder: Decoder[PricingEstimateItemRequest] = deriveDecoder[PricingEstimateItemRequest]
+  
+  implicit val pricingEstimateRequestEncoder: Encoder[PricingEstimateRequest] = deriveEncoder[PricingEstimateRequest]
+  implicit val pricingEstimateRequestDecoder: Decoder[PricingEstimateRequest] = deriveDecoder[PricingEstimateRequest]
+  
+  implicit val pricingEstimateItemResponseEncoder: Encoder[PricingEstimateItemResponse] = deriveEncoder[PricingEstimateItemResponse]
+  implicit val pricingEstimateItemResponseDecoder: Decoder[PricingEstimateItemResponse] = deriveDecoder[PricingEstimateItemResponse]
+  
+  implicit val pricingEstimateResponseEncoder: Encoder[PricingEstimateResponse] = deriveEncoder[PricingEstimateResponse]
+  implicit val pricingEstimateResponseDecoder: Decoder[PricingEstimateResponse] = deriveDecoder[PricingEstimateResponse]
   
   // Chargebee Product Catalog 2.0 types
   implicit val chargebeeItemPriceTierEncoder: Encoder[ChargebeeItemPriceTier] = deriveEncoder[ChargebeeItemPriceTier]
