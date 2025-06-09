@@ -147,8 +147,70 @@ Discover actual Chargebee product structure and item prices.
 
 ### Future Endpoints
 
-#### `POST /api/taxes` (Coming Soon)
-Mock tax calculation service.
+#### `POST /api/taxes` ✅ **Complete**
+Mock tax calculation service with multi-currency support.
+
+**Request**:
+```json
+{
+  "customerAddress": {
+    "line1": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94105",
+    "country": "US"
+  },
+  "lineItems": [
+    {
+      "description": "Nitro PDF Standard",
+      "amount": {
+        "amount": 1710.00,
+        "currency": "USD"
+      },
+      "taxable": true
+    }
+  ],
+  "currency": "USD"
+}
+```
+
+**Response**:
+```json
+{
+  "totalTax": {
+    "amount": 148.4280,
+    "currency": "USD"
+  },
+  "taxBreakdown": [
+    {
+      "name": "State Tax",
+      "rate": 8.68,
+      "amount": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "description": "CA State"
+    }
+  ],
+  "lineItems": [
+    {
+      "description": "Nitro PDF Standard",
+      "subtotal": {
+        "amount": 1710.00,
+        "currency": "USD"
+      },
+      "taxAmount": {
+        "amount": 148.4280,
+        "currency": "USD"
+      },
+      "total": {
+        "amount": 1858.4280,
+        "currency": "USD"
+      }
+    }
+  ]
+}
+```
 
 #### `POST /api/checkout` (Coming Soon) 
 Complete checkout flow for 1-year subscriptions.

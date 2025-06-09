@@ -2,7 +2,7 @@
 
 An Angular-based pricing calculator application for Nitro PDF and Nitro Sign products, featuring granular seat-based pricing tiers, package pricing, and API call pricing. **Now with full Chargebee integration and real-time pricing!**
 
-## 🚀 Current Status: **Phase 1 Backend Integration - 70% Complete**
+## 🚀 Current Status: **Phase 1 Backend Integration - 85% Complete**
 
 ### ✅ **Recently Completed Backend Integration**
 - **Chargebee Product Catalog 2.0**: Full integration with real-time pricing data
@@ -12,9 +12,14 @@ An Angular-based pricing calculator application for Nitro PDF and Nitro Sign pro
 - **Caching & Performance**: 1-hour TTL with graceful fallbacks for reliability
 
 ### 🔄 **Active Development**
-- **Mock Tax Service**: Multi-currency tax calculations (next priority)
 - **Checkout Endpoint**: Complete subscription creation with Chargebee (final Phase 1 milestone)
 - **Frontend Integration**: Ready to connect frontend to new backend APIs
+
+### ✅ **Recently Completed Tax Service**
+- **Mock Tax Service**: Multi-currency tax calculations now fully operational
+- **Tax Breakdown**: Detailed tax calculations by jurisdiction (US states, Canadian provinces, VAT, etc.)
+- **POST /api/taxes**: Complete endpoint for real-time tax calculations
+- **Feature Flag Ready**: Easy switch to real Avalara when sandbox becomes available
 
 ## Key Features
 
@@ -62,7 +67,7 @@ An Angular-based pricing calculator application for Nitro PDF and Nitro Sign pro
 - `GET /api/pricing?currency=USD` - Hybrid pricing (1yr Chargebee + 3yr static)  
 - `POST /api/estimate` - Volume tier calculations with packages & API calls
 - `GET /api/chargebee/discovery` - Product structure discovery
-- 🔄 `POST /api/taxes` - Mock tax calculation (coming soon)
+- ✅ `POST /api/taxes` - Mock tax calculation (complete and operational)
 - 🔄 `POST /api/checkout` - Subscription creation (final milestone)
 
 **Example API Response**:

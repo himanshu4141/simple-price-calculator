@@ -8,7 +8,7 @@ import org.apache.pekko.http.scaladsl.model.HttpMethods._
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService}
 import com.nitro.pricing.models.JsonCodecs._
-import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest}
+import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, TaxRequest}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe._
 import scala.concurrent.ExecutionContext
@@ -32,6 +32,7 @@ class ApiRoutes(
       concat(
         pricingRoutes,
         estimateRoutes,
+        taxRoutes,
         discoveryRoutes,
         healthRoutes,
         corsRoute
@@ -85,6 +86,30 @@ class ApiRoutes(
               logger.error("Estimate calculation failed", ex)
               val errorResponse = Json.obj(
                 "error" -> Json.fromString("Failed to calculate estimate"),
+                "message" -> Json.fromString(ex.getMessage)
+              )
+              complete(StatusCodes.BadRequest, errorResponse)
+          }
+        }
+      }
+    }
+  }
+
+  private val taxRoutes: Route = {
+    path("taxes") {
+      post {
+        entity(as[TaxRequest]) { request =>
+          logger.info(s"Tax calculation request received for ${request.customerAddress.country}, ${request.lineItems.length} items")
+          
+          onComplete(taxService.calculateTax(request)) {
+            case Success(taxResponse) =>
+              logger.info(s"Tax calculation successful: total tax ${taxResponse.totalTax.amount} ${taxResponse.totalTax.currency}")
+              complete(StatusCodes.OK, taxResponse)
+              
+            case Failure(ex) =>
+              logger.error("Tax calculation failed", ex)
+              val errorResponse = Json.obj(
+                "error" -> Json.fromString("Failed to calculate tax"),
                 "message" -> Json.fromString(ex.getMessage)
               )
               complete(StatusCodes.BadRequest, errorResponse)
