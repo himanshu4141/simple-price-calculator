@@ -171,6 +171,99 @@ class ChargebeeClient(config: ChargebeeConfig)(implicit ec: ExecutionContext, ba
     }
   }
 
+  def createCustomer(customer: Customer, billingAddress: BillingAddress): Future[Either[String, ChargebeeCustomer]] = {
+    logger.info(s"Creating Chargebee customer: ${customer.email}")
+    
+    val requestBody = Map(
+      "first_name" -> customer.firstName,
+      "last_name" -> customer.lastName,
+      "email" -> customer.email
+    ) ++ customer.company.map("company" -> _).toMap ++
+      customer.phone.map("phone" -> _).toMap ++
+      Map(
+        "billing_address[first_name]" -> billingAddress.firstName,
+        "billing_address[last_name]" -> billingAddress.lastName,
+        "billing_address[line1]" -> billingAddress.line1,
+        "billing_address[city]" -> billingAddress.city,
+        "billing_address[state]" -> billingAddress.state,
+        "billing_address[zip]" -> billingAddress.postalCode,
+        "billing_address[country]" -> billingAddress.country
+      ) ++ billingAddress.line2.map("billing_address[line2]" -> _).toMap ++
+        billingAddress.company.map("billing_address[company]" -> _).toMap
+
+    val request = basicRequest
+      .post(baseUri.addPath("customers"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(requestBody.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          json.hcursor.downField("customer").as[ChargebeeCustomer] match {
+            case Right(chargebeeCustomer) =>
+              logger.info(s"✅ Customer created successfully: ${chargebeeCustomer.id}")
+              Right(chargebeeCustomer)
+            case Left(error) =>
+              logger.error(s"❌ Failed to parse customer response: $error")
+              logger.debug(s"Raw JSON: ${json.spaces2}")
+              Left(s"Failed to parse customer response: $error")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Failed to create customer: $error")
+          Left(s"Failed to create customer: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating customer: ${ex.getMessage}")
+        Left(s"Error creating customer: ${ex.getMessage}")
+    }
+  }
+
+  def createSubscription(customerId: String, items: List[CheckoutItem]): Future[Either[String, ChargebeeSubscription]] = {
+    logger.info(s"Creating Chargebee subscription for customer: $customerId with ${items.length} items")
+    
+    val itemParams = items.zipWithIndex.flatMap { case (item, index) =>
+      Map(
+        s"subscription_items[item_price_id][$index]" -> item.itemPriceId,
+        s"subscription_items[quantity][$index]" -> item.quantity.toString
+        // Note: Omitting billing_cycles to use default behavior (infinite recurring)
+      )
+    }.toMap
+
+    val request = basicRequest
+      .post(baseUri.addPath("customers").addPath(customerId).addPath("subscription_for_items"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(itemParams.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          json.hcursor.downField("subscription").as[ChargebeeSubscription] match {
+            case Right(subscription) =>
+              logger.info(s"✅ Subscription created successfully: ${subscription.id}")
+              Right(subscription)
+            case Left(error) =>
+              logger.error(s"❌ Failed to parse subscription response: $error")
+              logger.debug(s"Raw JSON: ${json.spaces2}")
+              Left(s"Failed to parse subscription response: $error")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Failed to create subscription: $error")
+          Left(s"Failed to create subscription: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating subscription: ${ex.getMessage}")
+        Left(s"Error creating subscription: ${ex.getMessage}")
+    }
+  }
+
   def getProductStructure(): Future[ProductStructure] = {
     for {
       items <- listItems()

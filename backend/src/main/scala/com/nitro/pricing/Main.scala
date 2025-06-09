@@ -5,7 +5,7 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.server.Route
 import com.nitro.pricing.config.{AppConfig, EnvLoader}
-import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService}
+import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService}
 import com.nitro.pricing.routes.ApiRoutes
 import com.typesafe.scalalogging.LazyLogging
 import sttp.client3._
@@ -34,9 +34,10 @@ object Main extends App with LazyLogging {
   val chargebeeClient = new ChargebeeClient(config.chargebee)
   val taxService = new TaxCalculationService(config.avalara)
   val pricingService = new PricingService(chargebeeClient)
+  val checkoutService = new CheckoutService(chargebeeClient, taxService)
   
   // Initialize routes
-  val apiRoutes = new ApiRoutes(chargebeeClient, taxService, pricingService)
+  val apiRoutes = new ApiRoutes(chargebeeClient, taxService, pricingService, checkoutService)
   val routes: Route = apiRoutes.routes
 
   // Start HTTP server
@@ -50,6 +51,8 @@ object Main extends App with LazyLogging {
       logger.info("  GET  /api/health - Health check")
       logger.info("  GET  /api/pricing - Fetch pricing data (hybrid Chargebee + static)")
       logger.info("  POST /api/estimate - Calculate price estimates")
+      logger.info("  POST /api/taxes - Calculate tax amounts")
+      logger.info("  POST /api/checkout - Process subscription checkout")
       logger.info("  GET  /api/chargebee/discovery - Discover Chargebee products")
 
       

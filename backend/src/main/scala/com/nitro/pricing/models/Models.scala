@@ -286,6 +286,94 @@ case class TaxResponse(
   lineItems: List[TaxLineItemResponse]
 )
 
+// Checkout models
+case class Customer(
+  id: Option[String] = None,
+  firstName: String,
+  lastName: String,
+  email: String,
+  company: Option[String] = None,
+  phone: Option[String] = None
+)
+
+case class BillingAddress(
+  firstName: String,
+  lastName: String,
+  line1: String,
+  line2: Option[String] = None,
+  city: String,
+  state: String,
+  postalCode: String,
+  country: String,
+  company: Option[String] = None
+)
+
+case class CheckoutItem(
+  itemPriceId: String,
+  quantity: Int
+)
+
+case class CheckoutRequest(
+  customer: Customer,
+  billingAddress: BillingAddress,
+  items: List[CheckoutItem],
+  currency: String = "USD",
+  billingTerm: String = "1year"
+)
+
+case class CheckoutResponse(
+  success: Boolean,
+  customerId: String,
+  subscriptionId: Option[String] = None,
+  hostedPageUrl: Option[String] = None,
+  message: String,
+  salesContactRequired: Boolean = false
+)
+
+// Chargebee API response models
+case class ChargebeeCustomer(
+  id: String,
+  firstName: Option[String],
+  lastName: Option[String],
+  email: String,
+  company: Option[String],
+  phone: Option[String],
+  billingAddress: Option[ChargebeeBillingAddress] = None,
+  `object`: String = "customer"
+)
+
+case class ChargebeeBillingAddress(
+  firstName: Option[String],
+  lastName: Option[String],
+  line1: Option[String],
+  line2: Option[String],
+  city: Option[String],
+  state: Option[String],
+  zip: Option[String],
+  country: Option[String],
+  company: Option[String]
+)
+
+case class ChargebeeSubscription(
+  id: String,
+  customerId: String,
+  status: String,
+  currentTermStart: Long,
+  currentTermEnd: Long,
+  totalDues: Long,
+  currencyCode: String,
+  `object`: String = "subscription"
+)
+
+case class ChargebeeCustomerResponse(
+  customer: ChargebeeCustomer
+)
+
+case class ChargebeeSubscriptionResponse(
+  subscription: ChargebeeSubscription,
+  customer: ChargebeeCustomer
+)
+
 // JSON codecs
 object JsonCodecs {
   
@@ -370,6 +458,38 @@ object JsonCodecs {
   
   implicit val pricingEstimateResponseEncoder: Encoder[PricingEstimateResponse] = deriveEncoder[PricingEstimateResponse]
   implicit val pricingEstimateResponseDecoder: Decoder[PricingEstimateResponse] = deriveDecoder[PricingEstimateResponse]
+  
+  // Checkout types
+  implicit val customerEncoder: Encoder[Customer] = deriveEncoder[Customer]
+  implicit val customerDecoder: Decoder[Customer] = deriveDecoder[Customer]
+  
+  implicit val billingAddressEncoder: Encoder[BillingAddress] = deriveEncoder[BillingAddress]
+  implicit val billingAddressDecoder: Decoder[BillingAddress] = deriveDecoder[BillingAddress]
+  
+  implicit val checkoutItemEncoder: Encoder[CheckoutItem] = deriveEncoder[CheckoutItem]
+  implicit val checkoutItemDecoder: Decoder[CheckoutItem] = deriveDecoder[CheckoutItem]
+  
+  implicit val checkoutRequestEncoder: Encoder[CheckoutRequest] = deriveEncoder[CheckoutRequest]
+  implicit val checkoutRequestDecoder: Decoder[CheckoutRequest] = deriveDecoder[CheckoutRequest]
+  
+  implicit val checkoutResponseEncoder: Encoder[CheckoutResponse] = deriveEncoder[CheckoutResponse]
+  implicit val checkoutResponseDecoder: Decoder[CheckoutResponse] = deriveDecoder[CheckoutResponse]
+  
+  // Chargebee API response types
+  implicit val chargebeeBillingAddressEncoder: Encoder[ChargebeeBillingAddress] = deriveEncoder[ChargebeeBillingAddress]
+  implicit val chargebeeBillingAddressDecoder: Decoder[ChargebeeBillingAddress] = deriveDecoder[ChargebeeBillingAddress]
+  
+  implicit val chargebeeCustomerEncoder: Encoder[ChargebeeCustomer] = deriveEncoder[ChargebeeCustomer]
+  implicit val chargebeeCustomerDecoder: Decoder[ChargebeeCustomer] = deriveDecoder[ChargebeeCustomer]
+  
+  implicit val chargebeeSubscriptionEncoder: Encoder[ChargebeeSubscription] = deriveEncoder[ChargebeeSubscription]
+  implicit val chargebeeSubscriptionDecoder: Decoder[ChargebeeSubscription] = deriveDecoder[ChargebeeSubscription]
+  
+  implicit val chargebeeCustomerResponseEncoder: Encoder[ChargebeeCustomerResponse] = deriveEncoder[ChargebeeCustomerResponse]
+  implicit val chargebeeCustomerResponseDecoder: Decoder[ChargebeeCustomerResponse] = deriveDecoder[ChargebeeCustomerResponse]
+  
+  implicit val chargebeeSubscriptionResponseEncoder: Encoder[ChargebeeSubscriptionResponse] = deriveEncoder[ChargebeeSubscriptionResponse]
+  implicit val chargebeeSubscriptionResponseDecoder: Decoder[ChargebeeSubscriptionResponse] = deriveDecoder[ChargebeeSubscriptionResponse]
   
   // Chargebee Product Catalog 2.0 types
   implicit val chargebeeItemPriceTierEncoder: Encoder[ChargebeeItemPriceTier] = deriveEncoder[ChargebeeItemPriceTier]

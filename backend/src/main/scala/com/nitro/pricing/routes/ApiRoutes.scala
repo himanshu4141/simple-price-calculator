@@ -6,9 +6,9 @@ import org.apache.pekko.http.scaladsl.model.StatusCodes
 import org.apache.pekko.http.scaladsl.model.headers.{`Access-Control-Allow-Headers`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Origin`}
 import org.apache.pekko.http.scaladsl.model.HttpMethods._
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
-import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService}
+import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService}
 import com.nitro.pricing.models.JsonCodecs._
-import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, TaxRequest}
+import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, TaxRequest, CheckoutRequest}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe._
 import scala.concurrent.ExecutionContext
@@ -17,7 +17,8 @@ import scala.util.{Failure, Success}
 class ApiRoutes(
   chargebeeClient: ChargebeeClient,
   taxService: TaxCalculationService,
-  pricingService: PricingService
+  pricingService: PricingService,
+  checkoutService: CheckoutService
 )(implicit ec: ExecutionContext) extends LazyLogging {
 
   // CORS configuration for frontend integration
@@ -33,6 +34,7 @@ class ApiRoutes(
         pricingRoutes,
         estimateRoutes,
         taxRoutes,
+        checkoutRoutes,
         discoveryRoutes,
         healthRoutes,
         corsRoute
@@ -113,6 +115,40 @@ class ApiRoutes(
                 "message" -> Json.fromString(ex.getMessage)
               )
               complete(StatusCodes.BadRequest, errorResponse)
+          }
+        }
+      }
+    }
+  }
+
+  private val checkoutRoutes: Route = {
+    path("checkout") {
+      post {
+        entity(as[CheckoutRequest]) { request =>
+          logger.info(s"Checkout request received for customer: ${request.customer.email}, ${request.items.length} items, term: ${request.billingTerm}")
+          
+          onComplete(checkoutService.processCheckout(request)) {
+            case Success(checkoutResponse) =>
+              if (checkoutResponse.success) {
+                if (checkoutResponse.salesContactRequired) {
+                  logger.info(s"Checkout requires sales contact for ${request.customer.email}")
+                  complete(StatusCodes.Accepted, checkoutResponse)
+                } else {
+                  logger.info(s"Checkout completed successfully for customer: ${checkoutResponse.customerId}")
+                  complete(StatusCodes.Created, checkoutResponse)
+                }
+              } else {
+                logger.warn(s"Checkout failed for ${request.customer.email}: ${checkoutResponse.message}")
+                complete(StatusCodes.BadRequest, checkoutResponse)
+              }
+              
+            case Failure(ex) =>
+              logger.error(s"Checkout processing failed for ${request.customer.email}", ex)
+              val errorResponse = Json.obj(
+                "error" -> Json.fromString("Checkout processing failed"),
+                "message" -> Json.fromString(ex.getMessage)
+              )
+              complete(StatusCodes.InternalServerError, errorResponse)
           }
         }
       }

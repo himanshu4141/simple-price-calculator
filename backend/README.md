@@ -212,8 +212,112 @@ Mock tax calculation service with multi-currency support.
 }
 ```
 
-#### `POST /api/checkout` (Coming Soon) 
-Complete checkout flow for 1-year subscriptions.
+#### `POST /api/checkout` ✅ **COMPLETE**
+
+Create subscriptions with Chargebee for 1-year terms. Rejects 3-year terms with sales contact flow.
+
+**Request Body:**
+```json
+{
+  "customer": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@company.com",
+    "company": "Acme Corp"
+  },
+  "billingAddress": {
+    "firstName": "John",
+    "lastName": "Doe", 
+    "line1": "123 Business St",
+    "city": "Sydney",
+    "state": "NSW",
+    "postalCode": "2000",
+    "country": "AU",
+    "company": "Acme Corp"
+  },
+  "items": [
+    {
+      "itemPriceId": "sign-api-AUD-Yearly",
+      "quantity": 10
+    }
+  ],
+  "currency": "AUD",
+  "billingTerm": "1year"
+}
+```
+
+**Success Response (1-year term):**
+```json
+{
+  "success": true,
+  "customerId": "BTLelDUnfVtmcJ9I",
+  "subscriptionId": "subscription_123",
+  "hostedPageUrl": null,
+  "message": "Subscription created successfully",
+  "salesContactRequired": false
+}
+```
+
+**Sales Contact Response (3-year term):**
+```json
+{
+  "success": false,
+  "customerId": "",
+  "subscriptionId": null,
+  "hostedPageUrl": null,
+  "message": "3-year subscriptions require sales assistance. Please contact our sales team for a custom quote.",
+  "salesContactRequired": true
+}
+```
+
+**Payment Method Required (Expected for now):**
+```json
+{
+  "success": false,
+  "customerId": "BTLelDUnfVtmcJ9I",
+  "subscriptionId": null,
+  "hostedPageUrl": null,
+  "message": "Subscription creation failed: Cannot create the subscription as there is no valid card on file",
+  "salesContactRequired": false
+}
+```
+
+**Test Examples:**
+```bash
+# Test 1-year checkout (customer created, payment method needed)
+curl -X POST "http://localhost:8080/api/checkout" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": {
+      "firstName": "Bob", "lastName": "Wilson",
+      "email": "bob.wilson@company.com"
+    },
+    "billingAddress": {
+      "firstName": "Bob", "lastName": "Wilson",
+      "line1": "456 Enterprise Ave", "city": "Sydney",
+      "state": "NSW", "postalCode": "2000", "country": "AU"
+    },
+    "items": [{"itemPriceId": "sign-api-AUD-Yearly", "quantity": 10}],
+    "currency": "AUD", "billingTerm": "1year"
+  }'
+
+# Test 3-year rejection (sales contact required)
+curl -X POST "http://localhost:8080/api/checkout" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": {
+      "firstName": "Alice", "lastName": "Johnson",
+      "email": "alice.johnson@company.com"
+    },
+    "billingAddress": {
+      "firstName": "Alice", "lastName": "Johnson",
+      "line1": "789 Corporate Blvd", "city": "Toronto",
+      "state": "ON", "postalCode": "M5V 3A8", "country": "CA"
+    },
+    "items": [{"itemPriceId": "Nitro_PDF_PLUS-CAD-Yearly", "quantity": 25}],
+    "currency": "CAD", "billingTerm": "3year"
+  }'
+```
 
 ## Quick Start
 
