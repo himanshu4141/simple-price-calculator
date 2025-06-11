@@ -1,0 +1,36 @@
+<div class="api-test-container">
+  <h2>Backend API Integration Test</h2>
+  
+  <div class="test-section">
+    <h3>🔄 API Health Check</h3>
+    <button (click)="testApiHealth()" class="test-btn">Test API Health</button>
+    <div class="result" [ngClass]="healthStatus">{{ healthMessage }}</div>
+  </div>
+
+  <div class="test-section">
+    <h3>💰 Pricing Data Test</h3>
+    <button (click)="testPricingData()" class="test-btn">Fetch Pricing Data</button>
+    <div class="result">
+      <div *ngIf="pricingResult">
+        ✅ Success: {{ pricingResult.productFamilies.length }} product families loaded
+        <div>Supported currencies: {{ pricingResult.supportedCurrencies.join(', ') }}</div>
+        <div>Last updated: {{ pricingResult.lastUpdated | date:'short' }}</div>
+      </div>
+      <div *ngIf="pricingError" class="error">❌ Error: {{ pricingError }}</div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h3>🧮 Estimate Test</h3>
+    <button (click)="testEstimate()" class="test-btn">Test Estimate Calculation</button>
+    <div class="result">
+      <div *ngIf="estimateResult">
+        ✅ Success: ${{ estimateResult.total }} total for {{ estimateResult.items.length }} items
+        <div *ngFor="let item of estimateResult.items">
+          - {{ item.productFamily }} {{ item.planName }}: ${{ item.totalPrice }}
+        </div>
+      </div>
+      <div *ngIf="estimateError" class="error">❌ Error: {{ estimateError }}</div>
+    </div>
+  </div>
+</div>

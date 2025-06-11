@@ -5,13 +5,15 @@ import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import org.apache.pekko.http.scaladsl.model.headers.{`Access-Control-Allow-Headers`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Origin`}
 import org.apache.pekko.http.scaladsl.model.HttpMethods._
+import org.apache.pekko.http.scaladsl.server.directives.RouteDirectives.reject
+import org.apache.pekko.http.scaladsl.server.{Rejection, RejectionHandler}
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService}
 import com.nitro.pricing.models.JsonCodecs._
-import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, TaxRequest, CheckoutRequest}
+import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, PricingEstimateItemRequest, TaxRequest, CheckoutRequest, FrontendTaxRequest, Address, TaxLineItem, Money}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class ApiRoutes(
@@ -22,27 +24,79 @@ class ApiRoutes(
 )(implicit ec: ExecutionContext) extends LazyLogging {
 
   // CORS configuration for frontend integration
-  private val corsHeaders = Seq(
+  private val corsHeaders = List(
     `Access-Control-Allow-Origin`.*,
     `Access-Control-Allow-Methods`(GET, POST, PUT, DELETE, OPTIONS),
-    `Access-Control-Allow-Headers`("Content-Type", "Authorization")
+    `Access-Control-Allow-Headers`("Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With")
   )
 
-  val routes: Route = respondWithHeaders(corsHeaders) {
+  // Custom rejection handler that adds CORS headers to all responses
+  private val corsRejectionHandler = RejectionHandler.newBuilder()
+    .handleAll[Rejection] { rejections =>
+      respondWithHeaders(corsHeaders) {
+        RejectionHandler.default(rejections).getOrElse(complete(StatusCodes.NotFound))
+      }
+    }
+    .result()
+
+  private def addCorsHeaders(route: Route): Route = {
+    handleRejections(corsRejectionHandler) {
+      respondWithHeaders(corsHeaders) {
+        route
+      }
+    }
+  }
+
+  val routes: Route = addCorsHeaders {
     pathPrefix("api") {
       concat(
+        corsRoute,
         pricingRoutes,
         estimateRoutes,
         taxRoutes,
         checkoutRoutes,
         discoveryRoutes,
-        healthRoutes,
-        corsRoute
+        healthRoutes
       )
     }
   }
 
   private val corsRoute: Route = {
+    pathEndOrSingleSlash {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("pricing") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("estimate") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("taxes") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("checkout") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("chargebee") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
+    pathPrefix("health") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
     options {
       complete(StatusCodes.OK)
     }
@@ -97,11 +151,86 @@ class ApiRoutes(
     }
   }
 
+  // Convert frontend tax request to backend format using actual pricing
+  private def convertFrontendTaxRequestAsync(frontendRequest: FrontendTaxRequest): Future[TaxRequest] = {
+    val backendAddress = Address(
+      line1 = frontendRequest.customerAddress.line1,
+      line2 = frontendRequest.customerAddress.line2,
+      city = frontendRequest.customerAddress.city,
+      state = frontendRequest.customerAddress.state,
+      postalCode = frontendRequest.customerAddress.zip, // Convert zip to postalCode
+      country = frontendRequest.customerAddress.country
+    )
+    
+    // Convert frontend items to estimate request to get actual pricing
+    val estimateItems = frontendRequest.items.map { item =>
+      PricingEstimateItemRequest(
+        productFamily = item.productFamily,
+        planName = item.planName,
+        seats = item.seats,
+        packages = item.packages,
+        apiCalls = item.apiCalls
+      )
+    }
+    
+    val estimateRequest = PricingEstimateRequest(
+      items = estimateItems,
+      currency = frontendRequest.currency,
+      billingTerm = "1year" // Use 1year for tax calculations
+    )
+    
+    // Get actual pricing from the pricing service
+    pricingService.calculateEstimate(estimateRequest).map { estimateResponse =>
+      val backendLineItems = estimateResponse.items.map { item =>
+        TaxLineItem(
+          description = s"${item.planName} - ${item.productFamily}",
+          amount = Money(item.totalPrice, frontendRequest.currency),
+          taxable = true
+        )
+      }
+      
+      TaxRequest(
+        customerAddress = backendAddress,
+        lineItems = backendLineItems,
+        currency = frontendRequest.currency
+      )
+    }
+  }
+
   private val taxRoutes: Route = {
     path("taxes") {
       post {
+        // Try to parse as FrontendTaxRequest first (for Angular frontend)
+        entity(as[FrontendTaxRequest]) { frontendRequest =>
+          logger.info(s"Frontend tax calculation request received for ${frontendRequest.customerAddress.country}, ${frontendRequest.items.length} items")
+          
+          onComplete(convertFrontendTaxRequestAsync(frontendRequest)) {
+            case Success(backendRequest) =>
+              onComplete(taxService.calculateTax(backendRequest)) {
+                case Success(taxResponse) =>
+                  logger.info(s"Tax calculation successful: total tax ${taxResponse.totalTax.amount} ${taxResponse.totalTax.currency}")
+                  complete(StatusCodes.OK, taxResponse)
+                  
+                case Failure(ex) =>
+                  logger.error("Tax calculation failed", ex)
+                  val errorResponse = Json.obj(
+                    "error" -> Json.fromString("Failed to calculate tax"),
+                    "message" -> Json.fromString(ex.getMessage)
+                  )
+                  complete(StatusCodes.BadRequest, errorResponse)
+              }
+            case Failure(ex) =>
+              logger.error("Failed to convert frontend tax request", ex)
+              val errorResponse = Json.obj(
+                "error" -> Json.fromString("Failed to process tax request"),
+                "message" -> Json.fromString(ex.getMessage)
+              )
+              complete(StatusCodes.BadRequest, errorResponse)
+          }
+        } ~
+        // Fallback to original TaxRequest format for backward compatibility
         entity(as[TaxRequest]) { request =>
-          logger.info(s"Tax calculation request received for ${request.customerAddress.country}, ${request.lineItems.length} items")
+          logger.info(s"Backend tax calculation request received for ${request.customerAddress.country}, ${request.lineItems.length} items")
           
           onComplete(taxService.calculateTax(request)) {
             case Success(taxResponse) =>

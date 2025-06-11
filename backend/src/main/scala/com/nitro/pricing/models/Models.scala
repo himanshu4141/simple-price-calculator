@@ -286,6 +286,30 @@ case class TaxResponse(
   lineItems: List[TaxLineItemResponse]
 )
 
+// Frontend tax request models (to support the different format from frontend)
+case class FrontendAddress(
+  line1: String,
+  line2: Option[String] = None,
+  city: String,
+  state: String,
+  zip: String,  // Frontend uses "zip" instead of "postalCode"
+  country: String
+)
+
+case class FrontendTaxItem(
+  productFamily: String,
+  planName: String,
+  seats: Int,
+  packages: Option[Int] = None,
+  apiCalls: Option[Int] = None
+)
+
+case class FrontendTaxRequest(
+  items: List[FrontendTaxItem],
+  customerAddress: FrontendAddress,
+  currency: String
+)
+
 // Checkout models
 case class Customer(
   id: Option[String] = None,
@@ -401,7 +425,27 @@ object JsonCodecs {
   implicit val planEncoder: Encoder[Plan] = deriveEncoder[Plan]
   implicit val planDecoder: Decoder[Plan] = deriveDecoder[Plan]
   
-  // Request/Response types
+  // Chargebee models
+  implicit val chargebeeItemEncoder: Encoder[ChargebeeItem] = deriveEncoder[ChargebeeItem]
+  implicit val chargebeeItemDecoder: Decoder[ChargebeeItem] = deriveDecoder[ChargebeeItem]
+  
+  implicit val chargebeeItemPriceTierEncoder: Encoder[ChargebeeItemPriceTier] = deriveEncoder[ChargebeeItemPriceTier]
+  implicit val chargebeeItemPriceTierDecoder: Decoder[ChargebeeItemPriceTier] = deriveDecoder[ChargebeeItemPriceTier]
+  
+  implicit val chargebeeItemPriceEncoder: Encoder[ChargebeeItemPrice] = deriveEncoder[ChargebeeItemPrice]
+  implicit val chargebeeItemPriceDecoder: Decoder[ChargebeeItemPrice] = deriveDecoder[ChargebeeItemPrice]
+  
+  implicit val productStructureEncoder: Encoder[ProductStructure] = deriveEncoder[ProductStructure]
+  implicit val productStructureDecoder: Decoder[ProductStructure] = deriveDecoder[ProductStructure]
+  
+  // Health check types
+  implicit val serviceStatusEncoder: Encoder[ServiceStatus] = deriveEncoder[ServiceStatus]
+  implicit val serviceStatusDecoder: Decoder[ServiceStatus] = deriveDecoder[ServiceStatus]
+  
+  implicit val healthResponseEncoder: Encoder[HealthResponse] = deriveEncoder[HealthResponse]
+  implicit val healthResponseDecoder: Decoder[HealthResponse] = deriveDecoder[HealthResponse]
+  
+  // Estimate types
   implicit val estimateItemEncoder: Encoder[EstimateItem] = deriveEncoder[EstimateItem]
   implicit val estimateItemDecoder: Decoder[EstimateItem] = deriveDecoder[EstimateItem]
   
@@ -436,6 +480,16 @@ object JsonCodecs {
   implicit val taxResponseEncoder: Encoder[TaxResponse] = deriveEncoder[TaxResponse]
   implicit val taxResponseDecoder: Decoder[TaxResponse] = deriveDecoder[TaxResponse]
   
+  // Frontend tax request types
+  implicit val frontendAddressEncoder: Encoder[FrontendAddress] = deriveEncoder[FrontendAddress]
+  implicit val frontendAddressDecoder: Decoder[FrontendAddress] = deriveDecoder[FrontendAddress]
+  
+  implicit val frontendTaxItemEncoder: Encoder[FrontendTaxItem] = deriveEncoder[FrontendTaxItem]
+  implicit val frontendTaxItemDecoder: Decoder[FrontendTaxItem] = deriveDecoder[FrontendTaxItem]
+  
+  implicit val frontendTaxRequestEncoder: Encoder[FrontendTaxRequest] = deriveEncoder[FrontendTaxRequest]
+  implicit val frontendTaxRequestDecoder: Decoder[FrontendTaxRequest] = deriveDecoder[FrontendTaxRequest]
+  
   // Pricing API types
   implicit val rampPriceEncoder: Encoder[RampPrice] = deriveEncoder[RampPrice]
   implicit val rampPriceDecoder: Decoder[RampPrice] = deriveDecoder[RampPrice]
@@ -446,7 +500,6 @@ object JsonCodecs {
   implicit val pricingProductFamilyEncoder: Encoder[PricingProductFamily] = deriveEncoder[PricingProductFamily]
   implicit val pricingProductFamilyDecoder: Decoder[PricingProductFamily] = deriveDecoder[PricingProductFamily]
   
-  // Pricing estimate API types
   implicit val pricingEstimateItemRequestEncoder: Encoder[PricingEstimateItemRequest] = deriveEncoder[PricingEstimateItemRequest]
   implicit val pricingEstimateItemRequestDecoder: Decoder[PricingEstimateItemRequest] = deriveDecoder[PricingEstimateItemRequest]
   
@@ -490,37 +543,4 @@ object JsonCodecs {
   
   implicit val chargebeeSubscriptionResponseEncoder: Encoder[ChargebeeSubscriptionResponse] = deriveEncoder[ChargebeeSubscriptionResponse]
   implicit val chargebeeSubscriptionResponseDecoder: Decoder[ChargebeeSubscriptionResponse] = deriveDecoder[ChargebeeSubscriptionResponse]
-  
-  // Chargebee Product Catalog 2.0 types
-  implicit val chargebeeItemPriceTierEncoder: Encoder[ChargebeeItemPriceTier] = deriveEncoder[ChargebeeItemPriceTier]
-  implicit val chargebeeItemPriceTierDecoder: Decoder[ChargebeeItemPriceTier] = deriveDecoder[ChargebeeItemPriceTier]
-  
-  implicit val chargebeeItemEncoder: Encoder[ChargebeeItem] = deriveEncoder[ChargebeeItem]
-  implicit val chargebeeItemDecoder: Decoder[ChargebeeItem] = deriveDecoder[ChargebeeItem]
-  
-  implicit val chargebeeItemPriceEncoder: Encoder[ChargebeeItemPrice] = deriveEncoder[ChargebeeItemPrice]
-  implicit val chargebeeItemPriceDecoder: Decoder[ChargebeeItemPrice] = deriveDecoder[ChargebeeItemPrice]
-  
-  implicit val productStructureEncoder: Encoder[ProductStructure] = deriveEncoder[ProductStructure]
-  implicit val productStructureDecoder: Decoder[ProductStructure] = deriveDecoder[ProductStructure]
-
-  // Legacy Chargebee PC 1.0 types (for backward compatibility)
-  implicit val chargebeeTierEncoder: Encoder[ChargebeeTier] = deriveEncoder[ChargebeeTier]
-  implicit val chargebeeTierDecoder: Decoder[ChargebeeTier] = deriveDecoder[ChargebeeTier]
-  
-  implicit val chargebeeAddonEncoder: Encoder[ChargebeeAddon] = deriveEncoder[ChargebeeAddon]
-  implicit val chargebeeAddonDecoder: Decoder[ChargebeeAddon] = deriveDecoder[ChargebeeAddon]
-  
-  implicit val chargebeePlanEncoder: Encoder[ChargebeePlan] = deriveEncoder[ChargebeePlan]
-  implicit val chargebeePlanDecoder: Decoder[ChargebeePlan] = deriveDecoder[ChargebeePlan]
-  
-  implicit val chargebeeDiscoveryResponseEncoder: Encoder[ChargebeeDiscoveryResponse] = deriveEncoder[ChargebeeDiscoveryResponse]
-  implicit val chargebeeDiscoveryResponseDecoder: Decoder[ChargebeeDiscoveryResponse] = deriveDecoder[ChargebeeDiscoveryResponse]
-  
-  // Health check types
-  implicit val serviceStatusEncoder: Encoder[ServiceStatus] = deriveEncoder[ServiceStatus]
-  implicit val serviceStatusDecoder: Decoder[ServiceStatus] = deriveDecoder[ServiceStatus]
-  
-  implicit val healthResponseEncoder: Encoder[HealthResponse] = deriveEncoder[HealthResponse]
-  implicit val healthResponseDecoder: Decoder[HealthResponse] = deriveDecoder[HealthResponse]
 }

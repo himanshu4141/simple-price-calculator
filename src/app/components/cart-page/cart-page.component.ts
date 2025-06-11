@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PricingService, EstimateRequest, EstimateItemRequest } from '../../services/pricing.service';
 import { ProductFamily, CartItem, Plan } from '../../models/pricing.model';
 
@@ -26,6 +26,7 @@ export class CartPageComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private pricingService: PricingService
   ) {}
 
@@ -190,8 +191,18 @@ export class CartPageComponent implements OnInit {
   }
 
   checkout(): void {
-    // Dummy checkout handler
-    alert('Checkout not implemented.');
+    // Navigate to checkout page with current cart data
+    this.router.navigate(['/checkout'], {
+      queryParams: {
+        nitropdf_plan: this.selectedPdfPlan || '',
+        nitropdf_seats: this.selectedPdfPlan ? this.pdfSeats : 0,
+        nitrosign_plan: this.selectedSignPlan || '',
+        nitrosign_seats: this.selectedSignPlan ? this.signSeats : 0,
+        nitrosign_packages: this.signPackages || 0,
+        nitrosign_apiCalls: this.signApiCalls || 0,
+        term: this.term
+      }
+    });
   }
 
   // Handle quick add confirmation
