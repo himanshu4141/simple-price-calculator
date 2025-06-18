@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, NgZone } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { PricingService, EstimateRequest, EstimateItemRequest } from '../../services/pricing.service';
+import { StripeService } from '../../services/stripe.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -34,6 +35,8 @@ interface CheckoutRequest {
   items: CheckoutItem[];
   currency: string;
   billingTerm: string;
+  paymentMethodId?: string;
+  stripeToken?: string;
 }
 
 interface CheckoutResponse {
@@ -93,7 +96,9 @@ interface TaxResponse {
   templateUrl: './checkout-page.component.html',
   styleUrls: ['./checkout-page.component.scss']
 })
-export class CheckoutPageComponent implements OnInit {
+export class CheckoutPageComponent implements OnInit, AfterViewInit {
+  @ViewChild('cardElementContainer', { static: false }) cardElementContainer!: ElementRef;
+  
   checkoutForm: FormGroup;
   
   // Cart data from query params
@@ -110,6 +115,12 @@ export class CheckoutPageComponent implements OnInit {
   showSalesModal = false;
   checkoutComplete = false;
   errorMessage = '';
+  
+  // Stripe state
+  stripeReady = false;
+  isProcessingPayment = false;
+  paymentErrors = '';
+  paymentMethodCreated = false;
   
   // Pricing data
   estimateTotal = 0;
@@ -131,7 +142,9 @@ export class CheckoutPageComponent implements OnInit {
     private router: Router,
     private fb: FormBuilder,
     private pricingService: PricingService,
-    private http: HttpClient
+    private stripeService: StripeService,
+    private http: HttpClient,
+    private ngZone: NgZone
   ) {
     this.checkoutForm = this.fb.group({
       // Customer information
@@ -176,6 +189,74 @@ export class CheckoutPageComponent implements OnInit {
         this.calculateTax();
       }
     });
+
+    // Initialize Stripe
+    this.initializeStripe();
+  }
+
+  ngAfterViewInit(): void {
+    // Set up Stripe Card Element after view is initialized
+    if (this.term === '1year') {
+      // Use setTimeout to ensure DOM is fully ready
+      setTimeout(() => {
+        this.setupStripeCardElement();
+      }, 100);
+    }
+  }
+
+  private async initializeStripe(): Promise<void> {
+    try {
+      await this.stripeService.initializeStripe();
+      this.stripeReady = true;
+      console.log('✅ Stripe initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize Stripe:', error);
+      this.paymentErrors = 'Payment system initialization failed. Please refresh and try again.';
+    }
+  }
+
+  private async setupStripeCardElement(): Promise<void> {
+    console.log('🔧 Setting up Stripe Card Element...', {
+      stripeReady: this.stripeReady,
+      cardElementContainer: !!this.cardElementContainer,
+      term: this.term,
+      paymentMethodCreated: this.paymentMethodCreated
+    });
+    
+    // Don't setup if already created
+    if (this.paymentMethodCreated) {
+      console.log('✅ Card Element already set up, skipping');
+      return;
+    }
+    
+    if (!this.stripeReady) {
+      console.warn('❌ Stripe not ready yet, retrying...');
+      setTimeout(() => this.setupStripeCardElement(), 200);
+      return;
+    }
+    
+    if (!this.cardElementContainer) {
+      console.warn('❌ Card element container not found, retrying...');
+      setTimeout(() => this.setupStripeCardElement(), 200);
+      return;
+    }
+
+    try {
+      // Create elements instance only if not already created
+      const existingCardElement = this.stripeService.getCardElement();
+      if (!existingCardElement) {
+        this.stripeService.createElements();
+        await this.stripeService.createCardElement('card-element');
+      } else {
+        console.log('✅ Card Element already exists, reusing');
+      }
+      
+      this.paymentMethodCreated = true;
+      console.log('✅ Stripe Card Element setup completed');
+    } catch (error) {
+      console.error('❌ Failed to setup Stripe Card Element:', error);
+      this.paymentErrors = 'Payment form setup failed. Please refresh and try again.';
+    }
   }
 
   calculateEstimate(): void {
@@ -284,7 +365,12 @@ export class CheckoutPageComponent implements OnInit {
     this.finalTotal = this.estimateTotal + this.taxAmount;
   }
 
-  onSubmit(): void {
+  onSubmit(event?: Event): void {
+    // Prevent default form submission behavior if called from form submit
+    if (event) {
+      event.preventDefault();
+    }
+    
     if (this.checkoutForm.invalid) {
       this.markFormGroupTouched(this.checkoutForm);
       return;
@@ -324,6 +410,147 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   processCheckout(): void {
+    if (this.term === '1year') {
+      // For 1-year terms, process payment with Stripe
+      this.processStripePayment();
+    } else {
+      // For 3-year terms, create subscription without payment
+      this.processCheckoutWithoutPayment();
+    }
+  }
+
+  private async processStripePayment(): Promise<void> {
+    this.isProcessingPayment = true;
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.paymentErrors = '';
+
+    const formValue = this.checkoutForm.value;
+
+    try {
+      // Create Stripe PaymentMethod (more reliable than tokens)
+      console.log('🔐 Creating Stripe PaymentMethod...');
+      
+      // Small delay to ensure any pending Angular updates are complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const paymentMethodResult = await this.stripeService.createPaymentMethod({
+        name: `${formValue.firstName} ${formValue.lastName}`,
+        email: formValue.email,
+        address_line1: formValue.line1,
+        address_city: formValue.city,
+        address_state: formValue.state,
+        address_zip: formValue.zip,
+        address_country: formValue.country,
+      });
+
+      if (paymentMethodResult.error) {
+        console.error('❌ Stripe PaymentMethod creation failed:', paymentMethodResult.error);
+        this.paymentErrors = paymentMethodResult.error.message || 'Payment processing failed. Please check your card information.';
+        this.isProcessingPayment = false;
+        this.isLoading = false;
+        return;
+      }
+
+      if (!paymentMethodResult.paymentMethod) {
+        console.error('❌ No PaymentMethod returned from Stripe');
+        this.paymentErrors = 'Payment processing failed. Please try again.';
+        this.isProcessingPayment = false;
+        this.isLoading = false;
+        return;
+      }
+
+      console.log('✅ Stripe PaymentMethod created:', paymentMethodResult.paymentMethod.id);
+
+      // Process checkout with PaymentMethod
+      await this.processCheckoutWithPaymentMethod(paymentMethodResult.paymentMethod);
+      
+    } catch (error) {
+      console.error('❌ Stripe payment processing error:', error);
+      this.paymentErrors = 'Payment processing failed. Please try again.';
+      this.isProcessingPayment = false;
+      this.isLoading = false;
+    }
+  }
+
+  private async processCheckoutWithPaymentMethod(paymentMethod: any): Promise<void> {
+    const formValue = this.checkoutForm.value;
+    
+    // Build checkout items
+    const checkoutItems: CheckoutItem[] = [];
+    
+    if (this.selectedPdfPlan) {
+      checkoutItems.push({
+        itemPriceId: this.getChargebeeItemPriceId(this.selectedPdfPlan, this.term),
+        quantity: this.pdfSeats
+      });
+    }
+    
+    if (this.selectedSignPlan) {
+      checkoutItems.push({
+        itemPriceId: this.getChargebeeItemPriceId(this.selectedSignPlan, this.term),
+        quantity: this.signSeats
+      });
+    }
+
+    const checkoutRequest: CheckoutRequest = {
+      customer: {
+        firstName: formValue.firstName,
+        lastName: formValue.lastName,
+        email: formValue.email,
+        company: formValue.company
+      },
+      billingAddress: {
+        firstName: formValue.firstName,
+        lastName: formValue.lastName,
+        line1: formValue.line1,
+        city: formValue.city,
+        state: formValue.state,
+        postalCode: formValue.zip,
+        country: formValue.country
+      },
+      items: checkoutItems,
+      currency: 'USD',
+      billingTerm: this.term,
+      paymentMethodId: paymentMethod.id
+    };
+
+    console.log('🔄 Processing checkout with Stripe PaymentMethod:', {
+      ...checkoutRequest,
+      paymentMethodId: '***' // Don't log the actual PaymentMethod ID
+    });
+
+    this.http.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
+      response => {
+        this.isLoading = false;
+        this.isProcessingPayment = false;
+        
+        if (response.success) {
+          console.log('✅ Checkout successful:', response);
+          this.checkoutComplete = true;
+        } else if (response.salesContactRequired) {
+          console.log('📞 Sales contact required:', response);
+          this.showSalesModal = true;
+        } else {
+          console.error('❌ Checkout failed:', response);
+          this.errorMessage = response.message || 'Checkout failed. Please try again.';
+        }
+      },
+      error => {
+        this.isLoading = false;
+        this.isProcessingPayment = false;
+        console.error('❌ Checkout error:', error);
+        
+        if (error.error && typeof error.error === 'object' && error.error.message) {
+          this.errorMessage = error.error.message || 'Checkout failed. Please try again.';
+        } else {
+          this.errorMessage = 'An error occurred during checkout. Please try again.';
+        }
+      }
+    );
+  }
+
+  private processCheckoutWithoutPayment(): void {
     this.isLoading = true;
     this.errorMessage = '';
 
@@ -359,7 +586,7 @@ export class CheckoutPageComponent implements OnInit {
         line1: formValue.line1,
         city: formValue.city,
         state: formValue.state,
-        postalCode: formValue.zip,  // Changed from zip to postalCode
+        postalCode: formValue.zip,
         country: formValue.country
       },
       items: checkoutItems,
@@ -367,7 +594,7 @@ export class CheckoutPageComponent implements OnInit {
       billingTerm: this.term
     };
 
-    console.log('🔄 Processing checkout:', checkoutRequest);
+    console.log('🔄 Processing checkout without payment:', checkoutRequest);
 
     this.http.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
       response => {

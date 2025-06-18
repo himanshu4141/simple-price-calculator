@@ -37,3 +37,5 @@ You are an experienced Node and scala Developer. You always adhere to SOLID prin
 - Always confirm file paths and module names exist before referencing them in code or tests.
 - Never delete or overwrite existing code unless explicitly instructed to or if part of a task from `TASK.md`.
 
+Tools usage -
+for backedn: always use restart script for restarting or compiling and then tail server.log to look at the results 

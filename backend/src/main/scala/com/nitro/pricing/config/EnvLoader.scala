@@ -48,6 +48,7 @@ object EnvLoader extends LazyLogging {
             key match {
               case "CHARGEBEE_SITE" => System.setProperty("chargebee.site", value)
               case "CHARGEBEE_API_KEY" => System.setProperty("chargebee.api-key", value)
+              case "CHARGEBEE_GATEWAY_ACCOUNT_ID" => System.setProperty("chargebee.gateway-account-id", value)
               case "STRIPE_PUBLIC_KEY" => System.setProperty("stripe.public-key", value)
               case "STRIPE_SECRET_KEY" => System.setProperty("stripe.secret-key", value)
               case "STRIPE_WEBHOOK_SECRET" => System.setProperty("stripe.webhook-secret", value)

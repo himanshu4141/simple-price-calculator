@@ -5,8 +5,8 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.server.Route
 import com.nitro.pricing.config.{AppConfig, EnvLoader}
-import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService}
-import com.nitro.pricing.routes.ApiRoutes
+import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService, StripeClient}
+import com.nitro.pricing.routes.{ApiRoutes}
 import com.typesafe.scalalogging.LazyLogging
 import sttp.client3._
 import sttp.client3.asynchttpclient.future.AsyncHttpClientFutureBackend
@@ -32,12 +32,13 @@ object Main extends App with LazyLogging {
 
   // Initialize services
   val chargebeeClient = new ChargebeeClient(config.chargebee)
+  val stripeClient = new StripeClient(config.stripe)
   val taxService = new TaxCalculationService(config.avalara)
   val pricingService = new PricingService(chargebeeClient)
-  val checkoutService = new CheckoutService(chargebeeClient, taxService)
+  val checkoutService = new CheckoutService(chargebeeClient, taxService, stripeClient)
   
   // Initialize routes
-  val apiRoutes = new ApiRoutes(chargebeeClient, taxService, pricingService, checkoutService)
+  val apiRoutes = new ApiRoutes(chargebeeClient, taxService, pricingService, checkoutService, stripeClient)
   val routes: Route = apiRoutes.routes
 
   // Start HTTP server

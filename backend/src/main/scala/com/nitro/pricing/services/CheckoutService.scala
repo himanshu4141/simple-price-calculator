@@ -6,9 +6,28 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.{ExecutionContext, Future}
 
+/**
+ * CheckoutService - Handles subscription checkout processing with Chargebee and Stripe
+ * 
+ * ACTIVE METHODS:
+ * - processCheckout: Main checkout endpoint used by ApiRoutes
+ * 
+ * PRIVATE METHODS (internal):
+ * - processChargebeeSubscription: Core checkout logic
+ * - processSubscriptionCreation: No-payment subscription creation
+ * - processSubscriptionWithPayment: PaymentIntent-based flow (NEW)
+ * - calculateTotalAmount: Amount calculation utility
+ * 
+ * CURRENT FLOW:
+ * Frontend PaymentMethod -> PaymentIntent -> Chargebee Subscription
+ * 
+ * Note: Removed deprecated methods including calculateCheckoutTax and 
+ * processSubscriptionWithStripeToken as they are no longer used.
+ */
 class CheckoutService(
   chargebeeClient: ChargebeeClient,
-  taxCalculationService: TaxCalculationService
+  taxCalculationService: TaxCalculationService,
+  stripeClient: StripeClient
 )(implicit ec: ExecutionContext) extends LazyLogging {
 
   def processCheckout(request: CheckoutRequest): Future[CheckoutResponse] = {
@@ -23,25 +42,41 @@ class CheckoutService(
         subscriptionId = None,
         hostedPageUrl = None,
         message = "3-year subscriptions require sales assistance. Please contact our sales team for a custom quote.",
-        salesContactRequired = true
+        salesContactRequired = true,
+        paymentIntentId = None,
+        paymentStatus = None
       ))
     }
 
     // Process 1-year terms through Chargebee
+    processChargebeeSubscription(request)
+  }
+
+  private def processChargebeeSubscription(request: CheckoutRequest): Future[CheckoutResponse] = {
     for {
       customerResult <- chargebeeClient.createCustomer(request.customer, request.billingAddress)
       checkoutResult <- customerResult match {
         case Right(chargebeeCustomer) =>
-          processSubscriptionCreation(chargebeeCustomer.id, request.items, request.currency)
+          // Handle payment methods
+          request.paymentMethodId match {
+            case Some(paymentMethodId) =>
+              // Payment method provided - attach it and create subscription with payment
+              processSubscriptionWithPayment(chargebeeCustomer.id, request.items, request.billingAddress, request.currency, paymentMethodId)
+            case None =>
+              // No payment method - create subscription without payment (might be free or require manual payment)
+              processSubscriptionCreation(chargebeeCustomer.id, request.items, request.currency)
+          }
         case Left(error) =>
-          logger.error(s"Customer creation failed: $error")
+          logger.error(s"Chargebee customer creation failed: $error")
           Future.successful(CheckoutResponse(
             success = false,
             customerId = "",
             subscriptionId = None,
             hostedPageUrl = None,
             message = s"Customer creation failed: $error",
-            salesContactRequired = false
+            salesContactRequired = false,
+            paymentIntentId = None,
+            paymentStatus = None
           ))
       }
     } yield checkoutResult
@@ -67,7 +102,9 @@ class CheckoutService(
           subscriptionId = Some(subscription.id),
           hostedPageUrl = None, // Could be added later for hosted payment pages
           message = "Subscription created successfully",
-          salesContactRequired = false
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("completed")
         )
       case Left(error) =>
         logger.error(s"❌ Subscription creation failed for customer $customerId: $error")
@@ -77,39 +114,103 @@ class CheckoutService(
           subscriptionId = None,
           hostedPageUrl = None,
           message = s"Subscription creation failed: $error",
-          salesContactRequired = false
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("failed")
         )
     }
   }
 
-  def calculateCheckoutTax(request: CheckoutRequest, subtotal: Money): Future[Either[String, TaxResponse]] = {
-    logger.info(s"Calculating tax for checkout: ${request.customer.email}, subtotal: ${subtotal.amount} ${subtotal.currency}")
+  private def processSubscriptionWithPayment(
+    customerId: String, 
+    requestedItems: List[CheckoutItem], 
+    billingAddress: BillingAddress,
+    currency: String, 
+    paymentMethodId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Creating subscription with payment for customer: $customerId, payment method: $paymentMethodId")
     
-    val customerAddress = Address(
-      line1 = request.billingAddress.line1,
-      line2 = request.billingAddress.line2,
-      city = request.billingAddress.city,
-      state = request.billingAddress.state,
-      postalCode = request.billingAddress.postalCode,
-      country = request.billingAddress.country
-    )
+    val subscriptionContainerId = s"Chargebee_susbcription_plan-${currency.toUpperCase}-1_YEAR"
+    val allItems = CheckoutItem(subscriptionContainerId, 1) :: requestedItems
+    
+    // Use the correct Chargebee + Stripe 3DS flow:
+    // 1. Calculate total amount using PricingService
+    // 2. Create and confirm PaymentIntent in Stripe with PaymentMethod
+    // 3. Use PaymentIntent ID in Chargebee subscription creation
+    for {
+      // Step 1: Calculate total amount using Chargebee estimate API
+      totalAmount <- calculateTotalAmount(customerId, allItems, billingAddress, currency)
+      
+      // Step 2: Create and confirm PaymentIntent in Stripe
+      paymentIntentResult <- stripeClient.createAndConfirmPaymentIntent(
+        amount = totalAmount,
+        currency = currency,
+        paymentMethodId = paymentMethodId,
+        captureMethod = "manual", // Use manual capture as per Chargebee sample
+        confirmationMethod = "manual",
+        setupFutureUsage = "off_session"
+      )
+      
+      // Step 2: Create subscription using PaymentIntent ID
+      subscriptionResult <- paymentIntentResult match {
+        case Right(paymentIntent) =>
+          logger.info(s"✅ PaymentIntent created and confirmed: ${paymentIntent.getId}")
+          chargebeeClient.createSubscriptionWithPaymentIntent(customerId, allItems, paymentIntent.getId)
+        case Left(error) =>
+          logger.error(s"❌ Failed to create PaymentIntent: $error")
+          Future.successful(Left(s"Failed to create PaymentIntent: $error"))
+      }
+    } yield subscriptionResult match {
+      case Right(subscription) =>
+        logger.info(s"✅ Subscription with payment completed successfully - Customer: $customerId, Subscription: ${subscription.id}")
+        CheckoutResponse(
+          success = true,
+          customerId = customerId,
+          subscriptionId = Some(subscription.id),
+          hostedPageUrl = None,
+          message = "Subscription created and payment processed successfully",
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("completed")
+        )
+      case Left(error) =>
+        logger.error(s"❌ Subscription with payment failed for customer $customerId: $error")
+        CheckoutResponse(
+          success = false,
+          customerId = customerId,
+          subscriptionId = None,
+          hostedPageUrl = None,
+          message = s"Payment processing failed: $error",
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("failed")
+        )
+    }
+  }
 
-    val lineItems = List(TaxLineItem(
-      description = "Subscription charges",
-      amount = subtotal,
-      taxable = true
-    ))
-
-    val taxRequest = TaxRequest(
-      customerAddress = customerAddress,
-      lineItems = lineItems,
-      currency = subtotal.currency
-    )
-
-    taxCalculationService.calculateTax(taxRequest).map(Right(_)).recover {
-      case ex =>
-        logger.error(s"❌ Tax calculation failed: ${ex.getMessage}")
-        Left(s"Tax calculation failed: ${ex.getMessage}")
+  private def calculateTotalAmount(
+    customerId: String,
+    items: List[CheckoutItem], 
+    billingAddress: BillingAddress,
+    currency: String
+  ): Future[Long] = {
+    // Use Chargebee's estimate API to get the exact amount that will be charged
+    logger.info(s"Calculating total amount for ${items.length} items in $currency using Chargebee estimate API")
+    
+    chargebeeClient.createSubscriptionEstimate(customerId, items, billingAddress, currency).map {
+      case Right(estimate) =>
+        val totalCents = estimate.invoice_estimate.map(_.total).getOrElse {
+          logger.warn("No invoice_estimate found in Chargebee estimate response")
+          18000L // fallback
+        }
+        logger.info(s"Total amount calculated via Chargebee estimate: $totalCents cents ($${totalCents / 100.0})")
+        totalCents
+      case Left(error) =>
+        logger.error(s"Failed to calculate amount via Chargebee estimate: $error")
+        // Fallback to a default amount if estimate fails
+        val fallbackCents = 18000L // $180.00 fallback
+        logger.info(s"Using fallback amount: $fallbackCents cents ($${fallbackCents / 100.0})")
+        fallbackCents
     }
   }
 }

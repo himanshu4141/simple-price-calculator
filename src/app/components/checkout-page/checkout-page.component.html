@@ -70,7 +70,7 @@
     </div>
 
     <!-- Checkout Form -->
-    <form [formGroup]="checkoutForm" (ngSubmit)="onSubmit()" class="checkout-form">
+    <form [formGroup]="checkoutForm" class="checkout-form" (submit)="$event.preventDefault()">
       
       <!-- Customer Information -->
       <div class="form-section">
@@ -208,6 +208,63 @@
       <div *ngIf="errorMessage" class="error-banner">
         {{ errorMessage }}
       </div>
+    </form>
+  </div>
+
+  <!-- Payment Information Section (1-year terms only) - PERSISTENT OUTSIDE LOADING CONTAINER -->
+  <div *ngIf="term === '1year'" class="payment-section-persistent">
+    <div class="form-section">
+      <h3>Payment Information</h3>
+      
+      <div class="payment-security">
+        <div class="security-badges">
+          <span class="security-badge">🔒 SSL Secured</span>
+          <span class="security-badge">💳 Stripe Powered</span>
+        </div>
+        <p class="security-note">Your payment information is encrypted and secure</p>
+      </div>
+
+      <div class="accepted-cards">
+        <span class="card-label">Accepted Cards:</span>
+        <div class="card-icons">
+          <span class="card-icon">💳 Visa</span>
+          <span class="card-icon">💳 Mastercard</span>
+          <span class="card-icon">💳 Amex</span>
+          <span class="card-icon">💳 Discover</span>
+        </div>
+      </div>
+
+      <div class="payment-form">
+        <div class="form-group">
+          <label for="card-element">Payment Information *</label>
+          <div #cardElementContainer id="card-element" class="card-element">
+            <!-- Stripe Card Element will mount here -->
+          </div>
+          <div *ngIf="paymentErrors" class="error-message">
+            {{ paymentErrors }}
+          </div>
+        </div>
+        
+        <div class="payment-summary">
+          <div class="payment-amount">
+            <span>Total to be charged:</span>
+            <span class="amount">${{ finalTotal.toFixed(2) }} USD</span>
+          </div>
+          <div class="billing-term-reminder">
+            <span>Billing: Annual subscription ({{ term === '1year' ? '1 Year' : '3 Years' }})</span>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="isProcessingPayment" class="processing-payment">
+        <div class="spinner"></div>
+        <p>Processing your payment...</p>
+      </div>
+      
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-banner">
+        {{ errorMessage }}
+      </div>
 
       <!-- Action Buttons -->
       <div class="form-actions">
@@ -215,14 +272,17 @@
           Return to Cart
         </button>
         <button 
-          type="submit" 
+          type="button" 
           class="primary-button" 
-          [disabled]="checkoutForm.invalid || isLoading"
+          (click)="onSubmit()"
+          [disabled]="checkoutForm.invalid || isLoading || isProcessingPayment || (term === '1year' && (!stripeReady || !paymentMethodCreated))"
         >
-          Complete Order
+          <span *ngIf="term === '3year'">Contact Sales</span>
+          <span *ngIf="term === '1year' && !isProcessingPayment">Complete Payment</span>
+          <span *ngIf="term === '1year' && isProcessingPayment">Processing...</span>
         </button>
       </div>
-    </form>
+    </div>
   </div>
 
   <!-- Sales Contact Modal -->
@@ -246,7 +306,7 @@
         
         <div class="contact-info">
           <div class="contact-method">
-            <strong>Email:</strong> sales@nitro.com
+            <strong>Email:</strong> sales&#64;nitro.com
           </div>
           <div class="contact-method">
             <strong>Phone:</strong> 1-800-NITRO-PDF

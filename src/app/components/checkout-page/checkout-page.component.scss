@@ -440,6 +440,202 @@
   }
 }
 
+// Payment Section Styles
+.payment-security {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #008A00;
+  
+  .security-badges {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    
+    .security-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: #e8f5e8;
+      color: #008A00;
+      border-radius: 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+  }
+  
+  .security-note {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+}
+
+.accepted-cards {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  
+  .card-label {
+    font-weight: 500;
+    color: #495057;
+  }
+  
+  .card-icons {
+    display: flex;
+    gap: 0.75rem;
+    
+    .card-icon {
+      padding: 0.25rem 0.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+  }
+}
+
+.payment-form {
+  .card-element {
+    min-height: 40px; // Ensure minimum height for Stripe iframe
+    padding: 0.875rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    
+    // Ensure iframe can load properly
+    iframe {
+      border: none !important;
+      outline: none !important;
+    }
+    
+    // Stripe Element container styling
+    .StripeElement {
+      width: 100%;
+      min-height: 24px;
+    }
+    
+    &:focus-within {
+      border-color: #008A00;
+      box-shadow: 0 0 0 3px rgba(0, 138, 0, 0.1);
+    }
+    
+    &.error {
+      border-color: #dc3545;
+      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+    
+    // Loading state indicator
+    &:empty::before {
+      content: "Loading payment form...";
+      color: #6c757d;
+      font-style: italic;
+      display: block;
+      text-align: center;
+      padding: 1rem;
+    }
+  }
+  
+  .payment-summary {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    
+    .payment-amount {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      
+      .amount {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #008A00;
+      }
+    }
+    
+    .billing-term-reminder {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+.processing-payment {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #e3f2fd;
+  border-radius: 8px;
+  margin-top: 1rem;
+  
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #bbdefb;
+    border-top: 3px solid #2196f3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  p {
+    margin: 0;
+    color: #1976d2;
+    font-weight: 500;
+  }
+}
+
+// Enhanced form actions for payment flow
+.form-actions {
+  .primary-button {
+    &:disabled {
+      background: #e9ecef;
+      color: #6c757d;
+      cursor: not-allowed;
+      
+      &:hover {
+        background: #e9ecef;
+        transform: none;
+      }
+    }
+    
+    &:not(:disabled) {
+      background: linear-gradient(135deg, #008A00, #00A500);
+      
+      &:hover {
+        background: linear-gradient(135deg, #007300, #008A00);
+      }
+    }
+  }
+}
+
+// Mobile responsiveness for payment section
+@media (max-width: 768px) {
+  .payment-security {
+    .security-badges {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+  
+  .accepted-cards {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
 // Responsive Design
 @media (max-width: 768px) {
   .checkout-container {

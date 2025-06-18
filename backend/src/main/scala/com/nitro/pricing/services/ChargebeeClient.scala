@@ -16,8 +16,11 @@ class ChargebeeClient(config: ChargebeeConfig)(implicit ec: ExecutionContext, ba
   
   private val apiKey = config.apiKey
   private val siteName = config.site
+  private val gatewayAccountId = config.gatewayAccountId
   private val baseUri = uri"https://$siteName.chargebee.com/api/v2"
   private val authHeader = "Basic " + Base64.getEncoder.encodeToString(s"$apiKey:".getBytes)
+
+  logger.info(s"ChargebeeClient initialized with site: $siteName, gateway: $gatewayAccountId")
 
   def testConnection(): Future[Boolean] = {
     logger.info(s"Testing Chargebee connection to site: $siteName")
@@ -261,6 +264,246 @@ class ChargebeeClient(config: ChargebeeConfig)(implicit ec: ExecutionContext, ba
       case ex =>
         logger.error(s"❌ Error creating subscription: ${ex.getMessage}")
         Left(s"Error creating subscription: ${ex.getMessage}")
+    }
+  }
+
+  def attachPaymentMethodToCustomer(customerId: String, stripePaymentMethodId: String): Future[Either[String, String]] = {
+    logger.info(s"Attaching Stripe payment method $stripePaymentMethodId to Chargebee customer: $customerId")
+    
+    val requestBody = Map(
+      "type" -> "card",
+      "gateway" -> gatewayAccountId,
+      "customer_id" -> customerId,
+      "tmp_token" -> stripePaymentMethodId
+    )
+
+    val request = basicRequest
+      .post(baseUri.addPath("payment_sources"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(requestBody.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          json.hcursor.downField("payment_source").as[Json] match {
+            case Right(paymentSource) =>
+              val paymentSourceId = paymentSource.hcursor.downField("id").as[String].getOrElse("unknown")
+              logger.info(s"✅ Payment source attached successfully: $paymentSourceId")
+              Right(paymentSourceId)
+            case Left(error) =>
+              logger.error(s"❌ Failed to parse payment source response: $error")
+              logger.debug(s"Raw JSON: ${json.spaces2}")
+              Left(s"Failed to parse payment source response: $error")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Failed to attach payment method: $error")
+          Left(s"Failed to attach payment method: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error attaching payment method: ${ex.getMessage}")
+        Left(s"Error attaching payment method: ${ex.getMessage}")
+    }
+  }
+
+  def createSubscriptionWithPayment(customerId: String, items: List[CheckoutItem], paymentMethodId: Option[String] = None, stripeToken: Option[String] = None): Future[Either[String, ChargebeeSubscription]] = {
+    logger.info(s"Creating Chargebee subscription with payment for customer: $customerId with ${items.length} items")
+    
+    val itemParams = items.zipWithIndex.flatMap { case (item, index) =>
+      Map(
+        s"subscription_items[item_price_id][$index]" -> item.itemPriceId,
+        s"subscription_items[quantity][$index]" -> item.quantity.toString
+      )
+    }.toMap
+
+    // Add payment method or Stripe token
+    val paymentParams = (paymentMethodId, stripeToken) match {
+      case (Some(pmId), _) => 
+        logger.info(s"Using existing payment method ID: $pmId")
+        Map(
+          "card[gateway]" -> gatewayAccountId,
+          "card[payment_method_id]" -> pmId
+        )
+      case (None, Some(token)) => 
+        logger.info(s"Creating subscription with Stripe token: $token")
+        // Try different parameter format based on Chargebee documentation
+        Map(
+          "card[gateway]" -> gatewayAccountId,
+          "card[tmp_token]" -> token
+        )
+      case (None, None) => 
+        logger.info("Creating subscription without payment method")
+        Map.empty[String, String]
+    }
+
+    val allParams = itemParams ++ paymentParams
+    
+    // Debug log the complete request parameters
+    logger.info(s"Subscription creation parameters: ${allParams.mkString(", ")}")
+
+    val request = basicRequest
+      .post(baseUri.addPath("customers").addPath(customerId).addPath("subscription_for_items"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(allParams.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+      
+    logger.info(s"Sending subscription creation request to: ${baseUri.addPath("customers").addPath(customerId).addPath("subscription_for_items")}")
+    logger.info(s"Request body: ${allParams.map { case (k, v) => s"$k=$v" }.mkString("&")}")
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          json.hcursor.downField("subscription").as[ChargebeeSubscription] match {
+            case Right(subscription) =>
+              logger.info(s"✅ Subscription with payment created successfully: ${subscription.id}")
+              Right(subscription)
+            case Left(error) =>
+              logger.error(s"❌ Failed to parse subscription response: $error")
+              logger.debug(s"Raw JSON: ${json.spaces2}")
+              Left(s"Failed to parse subscription response: $error")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Failed to create subscription with payment: $error")
+          Left(s"Failed to create subscription with payment: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating subscription with payment: ${ex.getMessage}")
+        Left(s"Error creating subscription with payment: ${ex.getMessage}")
+    }
+  }
+
+  def createSubscriptionWithPaymentIntent(customerId: String, items: List[CheckoutItem], paymentIntentId: String): Future[Either[String, ChargebeeSubscription]] = {
+    logger.info(s"Creating Chargebee subscription with PaymentIntent for customer: $customerId, PaymentIntent: $paymentIntentId")
+    
+    val itemParams = items.zipWithIndex.flatMap { case (item, index) =>
+      Map(
+        s"subscription_items[item_price_id][$index]" -> item.itemPriceId,
+        s"subscription_items[quantity][$index]" -> item.quantity.toString
+      )
+    }.toMap
+
+    // Use PaymentIntent flow as per Chargebee's official sample
+    val paymentParams = Map(
+      "payment_intent[gateway_account_id]" -> gatewayAccountId,
+      "payment_intent[gw_token]" -> paymentIntentId
+    )
+
+    val allParams = itemParams ++ paymentParams
+    
+    // Debug log the complete request parameters
+    logger.info(s"Subscription creation with PaymentIntent parameters: ${allParams.mkString(", ")}")
+
+    val request = basicRequest
+      .post(baseUri.addPath("customers").addPath(customerId).addPath("subscription_for_items"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(allParams.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+      
+    logger.info(s"Sending subscription creation request to: ${baseUri.addPath("customers").addPath(customerId).addPath("subscription_for_items")}")
+    logger.info(s"Request body: ${allParams.map { case (k, v) => s"$k=$v" }.mkString("&")}")
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          logger.info(s"Raw Chargebee subscription response: ${json.spaces2}")
+          json.hcursor.downField("subscription").as[ChargebeeSubscription] match {
+            case Right(subscription) =>
+              logger.info(s"✅ Subscription with PaymentIntent created successfully: ${subscription.id}")
+              Right(subscription)
+            case Left(error) =>
+              logger.error(s"❌ Failed to parse subscription response: $error")
+              logger.debug(s"Raw JSON: ${json.spaces2}")
+              Left(s"Failed to parse subscription response: $error")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Failed to create subscription with PaymentIntent: $error")
+          Left(s"Failed to create subscription with PaymentIntent: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating subscription with PaymentIntent: ${ex.getMessage}")
+        Left(s"Error creating subscription with PaymentIntent: ${ex.getMessage}")
+    }
+  }
+
+  /**
+   * Create an estimate for subscription with items using Chargebee's estimate API
+   * This gives us the exact amount that will be charged including taxes
+   */
+  def createSubscriptionEstimate(
+    customerId: String,
+    items: List[CheckoutItem],
+    billingAddress: BillingAddress,
+    currency: String = "USD"
+  ): Future[Either[String, ChargebeeEstimate]] = {
+    logger.info(s"Creating Chargebee estimate for customer: $customerId, ${items.length} items")
+    
+    val params = scala.collection.mutable.Map[String, String]()
+    
+    // Add customer information
+    params += "customer[first_name]" -> billingAddress.firstName
+    params += "customer[last_name]" -> billingAddress.lastName
+    params += "customer[email]" -> s"${customerId}@example.com" // Generate email from customer ID
+    
+    // Add billing address to estimate 
+    params += "billing_address[first_name]" -> billingAddress.firstName
+    params += "billing_address[last_name]" -> billingAddress.lastName
+    params += "billing_address[line1]" -> billingAddress.line1
+    params += "billing_address[city]" -> billingAddress.city
+    params += "billing_address[state]" -> billingAddress.state
+    params += "billing_address[zip]" -> billingAddress.postalCode
+    params += "billing_address[country]" -> billingAddress.country
+    
+    billingAddress.line2.foreach(line2 => params += "billing_address[line2]" -> line2)
+    billingAddress.company.foreach(company => params += "billing_address[company]" -> company)
+    
+    // Add subscription items according to Product Catalog 2.0 format
+    items.zipWithIndex.foreach { case (item, index) =>
+      params += s"subscription_items[item_price_id][$index]" -> item.itemPriceId
+      params += s"subscription_items[quantity][$index]" -> item.quantity.toString
+    }
+    
+    logger.info(s"Estimate parameters: ${params.toMap}")
+    
+    // Use the correct endpoint for new customer estimates
+    val request = basicRequest
+      .post(baseUri.addPath("estimates").addPath("create_subscription_for_items"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(params.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+    
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          logger.debug(s"Raw estimate response: ${json.spaces2}")
+          json.hcursor.downField("estimate").as[ChargebeeEstimate] match {
+            case Right(estimate) =>
+              val total = estimate.invoice_estimate.map(_.total).getOrElse(0L)
+              logger.info(s"✅ Estimate created successfully - Total: $total cents")
+              Right(estimate)
+            case Left(decodingError) =>
+              logger.error(s"❌ Failed to parse estimate: $decodingError")
+              logger.debug(s"Raw JSON for debugging: ${json.spaces2}")
+              Left(s"Failed to parse estimate: $decodingError")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Estimate API call failed: $error")
+          Left(s"Estimate API call failed: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating estimate: ${ex.getMessage}")
+        Left(s"Error creating estimate: ${ex.getMessage}")
     }
   }
 

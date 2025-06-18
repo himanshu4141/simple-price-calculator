@@ -9,6 +9,7 @@ case class ServerConfig(host: String, port: Int, requestTimeout: FiniteDuration)
 case class ChargebeeConfig(
   site: String,
   apiKey: String,
+  gatewayAccountId: String,
   baseUrl: String,
   timeout: FiniteDuration,
   maxRetryAttempts: Int,
@@ -65,6 +66,7 @@ object AppConfig {
       chargebee = ChargebeeConfig(
         site = config.getString("chargebee.site"),
         apiKey = config.getString("chargebee.api-key"),
+        gatewayAccountId = config.getString("chargebee.gateway-account-id"),
         baseUrl = config.getString("chargebee.base-url"),
         timeout = config.getDuration("chargebee.timeout").toScala,
         maxRetryAttempts = config.getInt("chargebee.retry.max-attempts"),

@@ -8,7 +8,7 @@ import org.apache.pekko.http.scaladsl.model.HttpMethods._
 import org.apache.pekko.http.scaladsl.server.directives.RouteDirectives.reject
 import org.apache.pekko.http.scaladsl.server.{Rejection, RejectionHandler}
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
-import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService}
+import com.nitro.pricing.services.{ChargebeeClient, TaxCalculationService, PricingService, CheckoutService, StripeClient}
 import com.nitro.pricing.models.JsonCodecs._
 import com.nitro.pricing.models.{HealthResponse, ServiceStatus, PricingEstimateRequest, PricingEstimateItemRequest, TaxRequest, CheckoutRequest, FrontendTaxRequest, Address, TaxLineItem, Money}
 import com.typesafe.scalalogging.LazyLogging
@@ -20,7 +20,8 @@ class ApiRoutes(
   chargebeeClient: ChargebeeClient,
   taxService: TaxCalculationService,
   pricingService: PricingService,
-  checkoutService: CheckoutService
+  checkoutService: CheckoutService,
+  stripeClient: StripeClient // <--- inject StripeClient here
 )(implicit ec: ExecutionContext) extends LazyLogging {
 
   // CORS configuration for frontend integration
@@ -56,6 +57,7 @@ class ApiRoutes(
         taxRoutes,
         checkoutRoutes,
         discoveryRoutes,
+        paymentRoutes, // <--- include payment routes here
         healthRoutes
       )
     }
@@ -307,6 +309,8 @@ class ApiRoutes(
       }
     }
   }
+
+  private val paymentRoutes: Route = new PaymentRoutes(stripeClient).routes
 
   private val healthRoutes: Route = {
     path("health") {

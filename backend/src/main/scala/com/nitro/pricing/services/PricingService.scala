@@ -116,7 +116,7 @@ class PricingService(
     currency: String
   ): List[PricingProductFamily] = {
     
-    logger.info(s"Merging pricing data: ${staticData.productFamilies.length} static families, ${chargebeeData.items.length} Chargebee items")
+    logger.debug(s"Merging pricing data: ${staticData.productFamilies.length} static families, ${chargebeeData.items.length} Chargebee items")
     
     // Map to store Chargebee pricing by item name
     val chargebeePricingMap = chargebeeData.itemPrices
