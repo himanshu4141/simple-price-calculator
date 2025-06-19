@@ -57,6 +57,11 @@ object AppConfig {
   def load(): AppConfig = {
     val config = ConfigFactory.load()
     
+    // Helper function to get string with fallback
+    def getStringWithFallback(path: String, fallback: String): String = {
+      if (config.hasPath(path)) config.getString(path) else fallback
+    }
+    
     AppConfig(
       server = ServerConfig(
         host = config.getString("server.host"),
@@ -64,17 +69,17 @@ object AppConfig {
         requestTimeout = config.getDuration("server.request-timeout").toScala
       ),
       chargebee = ChargebeeConfig(
-        site = config.getString("chargebee.site"),
-        apiKey = config.getString("chargebee.api-key"),
-        gatewayAccountId = config.getString("chargebee.gateway-account-id"),
+        site = getStringWithFallback("chargebee.site", "test-site"),
+        apiKey = getStringWithFallback("chargebee.api-key", "test-key"),
+        gatewayAccountId = getStringWithFallback("chargebee.gateway-account-id", "stripe"),
         baseUrl = config.getString("chargebee.base-url"),
         timeout = config.getDuration("chargebee.timeout").toScala,
         maxRetryAttempts = config.getInt("chargebee.retry.max-attempts"),
         retryBackoff = config.getDuration("chargebee.retry.backoff").toScala
       ),
       stripe = StripeConfig(
-        publicKey = config.getString("stripe.public-key"),
-        secretKey = config.getString("stripe.secret-key"),
+        publicKey = getStringWithFallback("stripe.public-key", "pk_test_default"),
+        secretKey = getStringWithFallback("stripe.secret-key", "sk_test_default"),
         timeout = config.getDuration("stripe.timeout").toScala
       ),
       avalara = AvalaraConfig(
