@@ -1,7 +1,13 @@
+// Angular core and common modules
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { PricingService } from '../../services/pricing.service';
-import { ProductFamily } from '../../models/pricing.model';
+
+// RxJS modules
+import { catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
+
+// Core application imports
+import { PricingService, ProductFamily, BillingTerm, BILLING_TERMS } from '../../services/pricing.service';
 
 @Component({
   selector: 'app-pricing-page',
@@ -9,42 +15,72 @@ import { ProductFamily } from '../../models/pricing.model';
   styleUrls: ['./pricing-page.component.scss']
 })
 export class PricingPageComponent implements OnInit {
-  productFamilies: ProductFamily[] = [];
-  selectedTerm: '1year' | '3year' = '1year';
-
+  // Service injection using traditional constructor injection
   constructor(
-    private pricingService: PricingService,
-    private router: Router
+    private readonly pricingService: PricingService,
+    private readonly router: Router
   ) {}
+
+  // Component state properties
+  public productFamilies: readonly ProductFamily[] = [];
+  public selectedTerm: BillingTerm = BILLING_TERMS.ONE_YEAR;
+  public isLoadingPricingData: boolean = false;
+  public errorMessage: string | null = null;
+
+  // Computed property using getter
+  public get isThreeYearSelected(): boolean {
+    return this.selectedTerm === BILLING_TERMS.THREE_YEAR;
+  }
+
+  // Constants for template
+  public readonly BILLING_TERMS = BILLING_TERMS;
 
   ngOnInit(): void {
     this.fetchPricingData();
   }
 
-  fetchPricingData(): void {
-    this.pricingService.fetchPricingData().subscribe(data => {
-      if (data && Array.isArray(data.productFamilies)) {
-        this.productFamilies = data.productFamilies;
-      } else {
-        this.productFamilies = [];
-      }
-    }, err => {
-      this.productFamilies = [];
-    });
+  private fetchPricingData(): void {
+    this.isLoadingPricingData = true;
+    this.errorMessage = null;
+
+    this.pricingService.fetchPricingData('USD')
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching pricing data:', error);
+          this.errorMessage = 'Failed to load pricing data. Please try again.';
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        this.isLoadingPricingData = false;
+        
+        if (response?.productFamilies) {
+          this.productFamilies = Object.freeze([...response.productFamilies]);
+        } else {
+          this.productFamilies = [];
+          if (!this.errorMessage) {
+            this.errorMessage = 'No pricing data available.';
+          }
+        }
+      });
   }
 
-  selectPlan(productFamily: ProductFamily, planName: string): void {
-    this.router.navigate(['/cart'], {
-      queryParams: {
-        product: productFamily.name,
-        plan: planName,
-        term: this.selectedTerm
-      }
+  public selectPlan(productFamily: ProductFamily, planName: string): void {
+    const navigationParams = Object.freeze({
+      product: productFamily.name,
+      plan: planName,
+      term: this.selectedTerm
     });
+
+    this.router.navigate(['/cart'], { queryParams: navigationParams });
   }
 
-  toggleTerm(): void {
-    this.selectedTerm = this.selectedTerm === '1year' ? '3year' : '1year';
+  public toggleTerm(): void {
+    const newTerm = this.selectedTerm === BILLING_TERMS.ONE_YEAR 
+      ? BILLING_TERMS.THREE_YEAR 
+      : BILLING_TERMS.ONE_YEAR;
+    
+    this.selectedTerm = newTerm;
   }
 
   getPlanPrice(plan: any, seats: number = 1): number {

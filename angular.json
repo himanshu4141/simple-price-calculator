@@ -99,7 +99,6 @@
       }
     }
   },
-  "defaultProject": "simple-price-calculator",
   "cli": {
     "analytics": false
   }

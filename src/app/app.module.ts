@@ -13,17 +13,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
 import { PricingPageComponent } from './components/pricing-page/pricing-page.component';
 import { CartPageComponent } from './components/cart-page/cart-page.component';
 import { PriceCalculatorComponent } from './components/price-calculator/price-calculator.component';
+import { CheckoutPageComponent } from './components/checkout-page/checkout-page.component';
 
 const routes: Routes = [
   { path: '', component: PricingPageComponent },
   { path: 'cart', component: CartPageComponent },
-  { path: 'calculator', component: PriceCalculatorComponent }
+  { path: 'calculator', component: PriceCalculatorComponent },
+  { path: 'checkout', component: CheckoutPageComponent }
 ];
 
 @NgModule({
@@ -31,7 +33,8 @@ const routes: Routes = [
     AppComponent,
     PricingPageComponent,
     CartPageComponent,
-    PriceCalculatorComponent
+    PriceCalculatorComponent,
+    CheckoutPageComponent
   ],
   imports: [
     BrowserModule,
@@ -48,7 +51,8 @@ const routes: Routes = [
     MatSliderModule,
     MatButtonToggleModule,
     MatTooltipModule,
-    FormsModule
+    FormsModule,
+    ReactiveFormsModule
   ],
   providers: [],
   bootstrap: [AppComponent]

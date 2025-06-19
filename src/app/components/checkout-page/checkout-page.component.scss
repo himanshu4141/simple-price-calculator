@@ -1,0 +1,809 @@
+// Checkout Page Component Styling with Nitro Theme
+// Applied to match consistent branding across pricing, calc// Main Content Layout with balanced proportions
+.checkout-content {
+  position: relative; // For absolute positioning of overlay
+  display: grid;
+  grid-template-columns: 2fr 1.5fr; // Form gets more space, summary is more compact but not tiny
+  gap: var(--nitro-spacing-3xl);
+  align-items: start;
+  max-width: 1100px; // Additional constraint for better centering
+  margin: 0 auto;
+  
+  &.processing {
+    pointer-events: none; // Disable interaction during processing
+  }
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    gap: var(--nitro-spacing-xl);
+    max-width: none;
+  }
+}components
+
+.checkout-container {
+  max-width: 1400px; // Match pricing page container width
+  margin: 0 auto;
+  padding: var(--nitro-spacing-xl);
+  font-family: 'DM Sans', sans-serif;
+  background: var(--nitro-silver);
+  min-height: 100vh;
+}
+
+.checkout-header {
+  background: white;
+  border-radius: 16px;
+  padding: var(--nitro-spacing-3xl);
+  margin-bottom: var(--nitro-spacing-3xl);
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  
+  .header-content {
+    text-align: center;
+    max-width: 800px; // Match pricing page inner content width
+    margin: 0 auto;
+    
+    h1 {
+      font-family: 'DM Serif Text', serif;
+      color: var(--nitro-black);
+      font-size: clamp(2rem, 4vw, 3rem);
+      margin-bottom: var(--nitro-spacing-lg);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--nitro-black), var(--nitro-eclipse));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      font-family: 'DM Sans', sans-serif;
+      color: var(--nitro-eclipse);
+      font-size: 1.25rem;
+      margin: 0;
+      font-weight: 400;
+    }
+  }
+}
+
+// Loading Overlay with Nitro theme
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--nitro-mist);
+    border-top: 4px solid var(--nitro-orange);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--nitro-spacing-lg);
+  }
+  
+  p {
+    color: var(--nitro-eclipse);
+    font-size: 1.25rem;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Success State with Nitro theme
+.checkout-success {
+  text-align: center;
+  padding: var(--nitro-spacing-3xl);
+  background: white;
+  border-radius: 16px;
+  margin: var(--nitro-spacing-xl) auto;
+  box-shadow: 0 4px 24px rgba(var(--nitro-black-rgb), 0.1);
+  border: 1px solid rgba(var(--nitro-pine), 0.2);
+  max-width: 1100px; // Match the main content width for consistency
+  
+  .success-icon {
+    font-size: 4rem;
+    margin-bottom: var(--nitro-spacing-lg);
+    color: var(--nitro-pine);
+  }
+  
+  h2 {
+    font-family: 'DM Serif Text', serif;
+    color: var(--nitro-pine);
+    margin-bottom: var(--nitro-spacing-lg);
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  
+  p {
+    color: var(--nitro-eclipse);
+    font-size: 1.25rem;
+    margin-bottom: var(--nitro-spacing-xl);
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+
+
+// Order Summary with Nitro theme - optimized for 50-50 layout
+.order-summary {
+  background: white;
+  padding: var(--nitro-spacing-xl);
+  border-radius: 16px;
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  position: sticky;
+  top: var(--nitro-spacing-xl);
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+  
+  @media (max-width: 1024px) {
+    order: -1;
+    position: static;
+    margin-bottom: var(--nitro-spacing-xl);
+  }
+  
+  h2 {
+    font-family: 'DM Serif Text', serif;
+    color: var(--nitro-black);
+    margin-bottom: var(--nitro-spacing-xl); // Restored margin
+    font-size: 1.75rem; // Restored larger size
+    font-weight: 700;
+  }
+}
+
+.summary-items {
+  margin-bottom: var(--nitro-spacing-md);
+}
+
+.summary-item {
+  padding: var(--nitro-spacing-md) 0; // Better spacing for 50-50 layout
+  border-bottom: 1px solid rgba(var(--nitro-eclipse-rgb), 0.15);
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px; // Very tight spacing
+    
+    .product-name {
+      font-weight: 600;
+      color: var(--nitro-black);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; // Better balance for 50-50 layout
+      line-height: 1.2;
+      
+      @media (max-width: 1024px) {
+        font-size: 1rem;
+      }
+    }
+    
+    .item-quantity {
+      color: var(--nitro-eclipse);
+      font-size: 0.85rem; // Slightly larger for better readability
+      font-family: 'DM Sans', sans-serif;
+      
+      @media (max-width: 1024px) {
+        font-size: 0.875rem;
+      }
+    }
+    
+    .addon-details {
+      color: var(--nitro-eclipse);
+      font-size: 0.8rem; // Slightly larger
+      margin-left: var(--nitro-spacing-sm);
+      font-family: 'DM Sans', sans-serif;
+      
+      @media (max-width: 1024px) {
+        font-size: 0.8rem; // Larger on mobile
+        margin-left: var(--nitro-spacing-md);
+      }
+    }
+  }
+}
+
+.billing-term {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--nitro-spacing-sm) 0; // Further reduced
+  border-top: 1px solid rgba(var(--nitro-eclipse-rgb), 0.15);
+  border-bottom: 1px solid rgba(var(--nitro-eclipse-rgb), 0.15);
+  margin-bottom: var(--nitro-spacing-sm);
+  
+  .term-label {
+    color: var(--nitro-eclipse);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; // Better readability for 50-50 layout
+  }
+  
+  .term-value {
+    font-weight: 600;
+    color: var(--nitro-black);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; // Better readability for 50-50 layout
+  }
+  
+  @media (max-width: 1024px) {
+    padding: var(--nitro-spacing-md) 0;
+    margin-bottom: var(--nitro-spacing-md);
+    
+    .term-label,
+    .term-value {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.pricing-breakdown {
+  .price-line {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--nitro-spacing-xs) 0; // Improved spacing for 50-50 layout
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; // Better readability for 50-50 layout
+    
+    &.total {
+      border-top: 2px solid var(--nitro-orange);
+      margin-top: var(--nitro-spacing-xs);
+      padding-top: var(--nitro-spacing-sm);
+      font-weight: 700;
+      font-size: 1rem; // Compact but still prominent
+      color: var(--nitro-black);
+      
+      @media (max-width: 1024px) {
+        font-size: 1.125rem; // Larger on mobile
+        padding-top: var(--nitro-spacing-md);
+      }
+    }
+    
+    .amount {
+      font-weight: 600;
+      color: var(--nitro-black);
+    }
+    
+    @media (max-width: 1024px) {
+      padding: var(--nitro-spacing-xs) 0;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Form Styles with Nitro theme
+.checkout-form {
+  background: white;
+  padding: var(--nitro-spacing-xl);
+  border-radius: 16px;
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+}
+
+.form-section {
+  margin-bottom: var(--nitro-spacing-3xl);
+  
+  h3 {
+    font-family: 'DM Serif Text', serif;
+    color: var(--nitro-black);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--nitro-spacing-xl);
+    padding-bottom: var(--nitro-spacing-sm);
+    border-bottom: 2px solid var(--nitro-mist);
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--nitro-spacing-lg);
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  margin-bottom: var(--nitro-spacing-xl);
+  
+  label {
+    display: block;
+    margin-bottom: var(--nitro-spacing-sm);
+    font-weight: 600;
+    color: var(--nitro-black);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+  }
+  
+  input, select {
+    width: 100%;
+    padding: var(--nitro-spacing-md);
+    border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.2);
+    border-radius: 12px;
+    font-size: 1rem;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.3s ease;
+    background: white;
+    color: var(--nitro-black);
+    
+    &:focus {
+      outline: none;
+      border-color: var(--nitro-orange);
+      box-shadow: 0 0 0 3px rgba(var(--nitro-orange-rgb), 0.1);
+      transform: translateY(-1px);
+    }
+    
+    &:hover:not(:focus) {
+      border-color: rgba(var(--nitro-eclipse-rgb), 0.4);
+    }
+    
+    &.error {
+      border-color: var(--nitro-terracotta);
+      box-shadow: 0 0 0 3px rgba(217, 55, 6, 0.1);
+    }
+    
+    &::placeholder {
+      color: rgba(var(--nitro-eclipse-rgb), 0.6);
+    }
+  }
+  
+  .error-message {
+    color: var(--nitro-terracotta);
+    font-size: 0.875rem;
+    margin-top: var(--nitro-spacing-xs);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+  }
+}
+
+// Error Banner with Nitro theme
+.error-banner {
+  background: rgba(var(--nitro-terracotta), 0.1);
+  border: 2px solid rgba(var(--nitro-terracotta), 0.3);
+  color: var(--nitro-terracotta);
+  padding: var(--nitro-spacing-lg);
+  border-radius: 12px;
+  margin-bottom: var(--nitro-spacing-xl);
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+// Action Buttons with Nitro theme
+.form-actions {
+  display: flex;
+  gap: var(--nitro-spacing-lg);
+  justify-content: flex-end;
+  margin-top: var(--nitro-spacing-3xl);
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.primary-button, .secondary-button {
+  padding: var(--nitro-spacing-lg) var(--nitro-spacing-2xl);
+  border: none;
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  font-family: 'DM Sans', sans-serif;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.primary-button {
+  background: linear-gradient(135deg, var(--nitro-orange), #ff6b35);
+  color: white;
+  border: 2px solid transparent;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(var(--nitro-orange-rgb), 0.3);
+    background: linear-gradient(135deg, #ff6b35, var(--nitro-orange));
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+.secondary-button {
+  background: transparent;
+  color: var(--nitro-orange);
+  border: 2px solid var(--nitro-orange);
+  
+  &:hover:not(:disabled) {
+    background: var(--nitro-orange);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(var(--nitro-orange-rgb), 0.3);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+// Modal Styles with Nitro theme
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(var(--nitro-black-rgb), 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--nitro-spacing-lg);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  max-width: 500px; // Slightly smaller for better proportions
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(var(--nitro-black-rgb), 0.3);
+  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--nitro-spacing-xl) var(--nitro-spacing-xl);
+  border-bottom: 2px solid var(--nitro-mist);
+  
+  h3 {
+    margin: 0;
+    color: var(--nitro-black);
+    font-family: 'DM Serif Text', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  
+  .close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--nitro-eclipse);
+    padding: var(--nitro-spacing-sm);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: var(--nitro-mist);
+      color: var(--nitro-black);
+      transform: scale(1.1);
+    }
+  }
+}
+
+.modal-body {
+  padding: var(--nitro-spacing-xl);
+  text-align: center;
+  
+  .sales-icon {
+    font-size: 4rem;
+    margin-bottom: var(--nitro-spacing-lg);
+    color: var(--nitro-orange);
+  }
+  
+  h4 {
+    color: var(--nitro-black);
+    margin-bottom: var(--nitro-spacing-lg);
+    font-size: 1.5rem;
+    font-family: 'DM Serif Text', serif;
+    font-weight: 700;
+  }
+  
+  p {
+    color: var(--nitro-eclipse);
+    line-height: 1.6;
+    margin-bottom: var(--nitro-spacing-lg);
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  .contact-info {
+    background: rgba(var(--nitro-orange), 0.05);
+    padding: var(--nitro-spacing-xl);
+    border-radius: 12px;
+    margin-top: var(--nitro-spacing-xl);
+    text-align: left;
+    border: 2px solid rgba(var(--nitro-orange-rgb), 0.2);
+    
+    .contact-method {
+      margin-bottom: var(--nitro-spacing-md);
+      font-family: 'DM Sans', sans-serif;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      strong {
+        color: var(--nitro-black);
+        margin-right: var(--nitro-spacing-sm);
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--nitro-spacing-lg);
+  padding: var(--nitro-spacing-xl);
+  border-top: 2px solid var(--nitro-mist);
+  justify-content: flex-end;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+// Subtle Security Footer
+.security-footer {
+  margin: var(--nitro-spacing-3xl) auto 0;
+  padding: var(--nitro-spacing-lg);
+  text-align: center;
+  border-top: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  max-width: 1100px; // Match the main content width for consistency
+  
+  .security-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--nitro-spacing-md);
+    flex-wrap: wrap;
+    
+    .security-item {
+      color: var(--nitro-eclipse);
+      font-size: 0.875rem;
+      font-family: 'DM Sans', sans-serif;
+      opacity: 0.8;
+    }
+    
+    .security-divider {
+      color: rgba(var(--nitro-eclipse-rgb), 0.4);
+      font-weight: bold;
+    }
+    
+    @media (max-width: 600px) {
+      flex-direction: column;
+      gap: var(--nitro-spacing-xs);
+      
+      .security-divider {
+        display: none;
+      }
+    }
+  }
+}
+
+// Simplified Payment Form (removed redundant sections)
+.payment-form {
+  // No additional top margin needed since we removed the security section
+  
+  .card-element {
+    min-height: 48px;
+    padding: var(--nitro-spacing-lg);
+    border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.2);
+    border-radius: 12px;
+    background: white;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    font-family: 'DM Sans', sans-serif;
+    
+    // Ensure iframe can load properly
+    iframe {
+      border: none !important;
+      outline: none !important;
+    }
+    
+    // Stripe Element container styling
+    .StripeElement {
+      width: 100%;
+      min-height: 24px;
+    }
+    
+    &:focus-within {
+      border-color: var(--nitro-orange);
+      box-shadow: 0 0 0 3px rgba(var(--nitro-orange-rgb), 0.1);
+      transform: translateY(-1px);
+    }
+    
+    &.error {
+      border-color: var(--nitro-terracotta);
+      box-shadow: 0 0 0 3px rgba(217, 55, 6, 0.1);
+    }
+    
+    // Loading state indicator
+    &:empty::before {
+      content: "Loading payment form...";
+      color: var(--nitro-eclipse);
+      font-style: italic;
+      display: block;
+      text-align: center;
+      padding: var(--nitro-spacing-lg);
+      font-family: 'DM Sans', sans-serif;
+    }
+  }
+}
+
+// Processing overlay - keeps form visible but shows overlay during payment processing
+.processing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: 16px;
+  backdrop-filter: blur(4px);
+  
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--nitro-mist);
+    border-top: 4px solid var(--nitro-orange);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--nitro-spacing-lg);
+  }
+  
+  p {
+    color: var(--nitro-black);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+.processing-payment {
+  display: flex;
+  align-items: center;
+  gap: var(--nitro-spacing-lg);
+  padding: var(--nitro-spacing-lg);
+  background: rgba(var(--nitro-orange), 0.1);
+  border-radius: 12px;
+  margin-top: var(--nitro-spacing-lg);
+  border: 2px solid rgba(var(--nitro-orange-rgb), 0.3);
+  
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(var(--nitro-orange-rgb), 0.3);
+    border-top: 3px solid var(--nitro-orange);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  p {
+    margin: 0;
+    color: var(--nitro-orange);
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+// Enhanced form actions for payment flow with Nitro theme
+.form-actions {
+  .primary-button {
+    &:disabled {
+      background: rgba(var(--nitro-eclipse-rgb), 0.3);
+      color: var(--nitro-eclipse);
+      cursor: not-allowed;
+      border-color: transparent;
+      
+      &:hover {
+        background: rgba(var(--nitro-eclipse-rgb), 0.3);
+        transform: none;
+        box-shadow: none;
+      }
+    }
+  }
+}
+
+// Responsive Design with Nitro spacing
+@media (max-width: 768px) {
+  .checkout-container {
+    padding: var(--nitro-spacing-lg);
+  }
+  
+  .checkout-header {
+    padding: var(--nitro-spacing-xl);
+    margin-bottom: var(--nitro-spacing-xl);
+    
+    .header-content h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+    }
+  }
+  
+  .order-summary, .checkout-form {
+    padding: var(--nitro-spacing-xl);
+  }
+  
+  .checkout-content {
+    gap: var(--nitro-spacing-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .checkout-container {
+    padding: var(--nitro-spacing-md);
+  }
+  
+  .checkout-header {
+    padding: var(--nitro-spacing-lg);
+    
+    .header-content {
+      h1 {
+        font-size: 1.75rem;
+      }
+      
+      .subtitle {
+        font-size: 1rem;
+      }
+    }
+  }
+  
+  .order-summary, .checkout-form {
+    padding: var(--nitro-spacing-lg);
+  }
+  
+  .form-section h3 {
+    font-size: 1.25rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    align-items: center;
+    
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      max-width: 300px;
+    }
+  }
+}

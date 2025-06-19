@@ -1,21 +1,30 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PricingService } from '../../services/pricing.service';
-import { ProductFamily, Plan } from '../../models/pricing.model';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+
+import {
+  PricingService,
+  ProductFamily,
+  Plan,
+  RampPricing,
+  BillingTerm,
+  PricingApiResponse
+} from '../../services/pricing.service';
 
 interface PriceBreakdown {
-  basePrice: number;
-  seatPrice: number;
-  seatQuantity: number;
-  packagePrice?: number;
-  packageQuantity?: number;
-  freePackages?: number;
-  apiPrice?: number;
-  apiCalls?: number;
-  total: number;
+  readonly basePrice: number;
+  readonly seatPrice: number;
+  readonly seatQuantity: number;
+  readonly packagePrice?: number;
+  readonly packageQuantity?: number;
+  readonly freePackages?: number;
+  readonly apiPrice?: number;
+  readonly apiCalls?: number;
+  readonly total: number;
 }
 
-interface Selection {
+interface ProductSelection {
   selectedPlan: string | null;
   seats: number;
   packages: number;
@@ -23,78 +32,125 @@ interface Selection {
   pricing: PriceBreakdown;
 }
 
+interface QueryParams {
+  readonly mode?: string;
+  readonly product?: string;
+  readonly plan?: string;
+  readonly term?: string;
+}
+
 @Component({
   selector: 'app-price-calculator',
   templateUrl: './price-calculator.component.html',
   styleUrls: ['./price-calculator.component.scss']
 })
-export class PriceCalculatorComponent implements OnInit {
+export class PriceCalculatorComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
+
   productFamilies: ProductFamily[] = [];
-  selectedTerm: '1year' | '3year' = '1year';
-  selections: { [key: string]: Selection } = {};
+  selectedTerm: BillingTerm = '1year';
+  selections: Record<string, ProductSelection> = {};
   totalPrice = 0;
   isConfigureMode = false;
   sourceProduct = '';
   sourcePlan = '';
 
   constructor(
-    private pricingService: PricingService,
-    private route: ActivatedRoute,
-    private router: Router
+    private readonly pricingService: PricingService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {}
 
   ngOnInit(): void {
-    // Handle URL parameters for configure mode
-    this.route.queryParams.subscribe(params => {
-      if (params['mode'] === 'configure') {
-        this.isConfigureMode = true;
-        this.sourceProduct = params['product'] || '';
-        this.sourcePlan = params['plan'] || '';
-        if (params['term']) {
-          this.selectedTerm = params['term'] as '1year' | '3year';
-        }
-      }
-    });
+    this.initializeFromQueryParams();
+    this.loadPricingData();
+  }
 
-    // Load pricing data
-    this.pricingService.fetchPricingData().subscribe(data => {
-      this.productFamilies = data.productFamilies;
-      // Initialize selections for each product family
-      this.productFamilies.forEach(family => {
-        this.selections[family.name] = {
-          selectedPlan: null,
-          seats: 1,
-          packages: 0,
-          apiCalls: 0,
-          pricing: {
-            basePrice: 0,
-            seatPrice: 0,
-            seatQuantity: 1,
-            total: 0
-          }
-        };
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private initializeFromQueryParams(): void {
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
+        this.parseConfigurationParams(params);
       });
+  }
+
+  private parseConfigurationParams(params: QueryParams): void {
+    if (params.mode === 'configure') {
+      this.isConfigureMode = true;
+      this.sourceProduct = params.product || '';
+      this.sourcePlan = params.plan || '';
       
-      // Pre-configure if coming from pricing page
-      if (this.isConfigureMode && this.sourceProduct && this.sourcePlan) {
-        const family = this.productFamilies.find(f => f.name === this.sourceProduct);
-        if (family && this.selections[this.sourceProduct]) {
-          this.selections[this.sourceProduct].selectedPlan = this.sourcePlan;
-          this.calculatePricing(this.sourceProduct);
-        }
+      if (params.term && this.isValidBillingTerm(params.term)) {
+        this.selectedTerm = params.term;
       }
+    }
+  }
+
+  private isValidBillingTerm(term: string): term is BillingTerm {
+    return term === '1year' || term === '3year';
+  }
+
+  private loadPricingData(): void {
+    this.pricingService.fetchPricingData('USD')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: PricingApiResponse) => {
+          this.productFamilies = response.productFamilies;
+          this.initializeSelections();
+          this.handleConfigureMode();
+        },
+        error: (error) => {
+          console.error('Error loading pricing data:', error);
+          this.productFamilies = [];
+        }
+      });
+  }
+
+  private initializeSelections(): void {
+    this.productFamilies.forEach(family => {
+      this.selections[family.name] = this.createInitialSelection();
     });
   }
 
+  private createInitialSelection(): ProductSelection {
+    return {
+      selectedPlan: null,
+      seats: 1,
+      packages: 0,
+      apiCalls: 0,
+      pricing: {
+        basePrice: 0,
+        seatPrice: 0,
+        seatQuantity: 1,
+        total: 0
+      }
+    };
+  }
+
+  private handleConfigureMode(): void {
+    if (this.isConfigureMode && this.sourceProduct && this.sourcePlan) {
+      const family = this.productFamilies.find(f => f.name === this.sourceProduct);
+      if (family && this.selections[this.sourceProduct]) {
+        this.selections[this.sourceProduct].selectedPlan = this.sourcePlan;
+        this.calculatePricing(this.sourceProduct);
+      }
+    }
+  }
+
   getPlanPrice(family: ProductFamily, planName: string, seats: number): number {
-    const plan = family.plans.find(p => p.name === planName);
+    const plan = family.plans.find((p: Plan) => p.name === planName);
     if (!plan) return 0;
 
     const pricing = this.selectedTerm === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
     const tier = pricing
       .slice()
       .reverse()
-      .find(t => seats >= t.minSeats);
+      .find((t: RampPricing) => seats >= t.minSeats);
     
     return tier?.price || 0;
   }
@@ -104,9 +160,9 @@ export class PriceCalculatorComponent implements OnInit {
     if (!family || !family.plans.length) return 10000;
     
     // Get the max seat tier from the pricing data
-    const maxSeats = family.plans.reduce((max, plan) => {
-      const oneYearMax = Math.max(...plan.oneYearPricing.map(tier => tier.minSeats));
-      const threeYearMax = Math.max(...plan.threeYearPricing.map(tier => tier.minSeats));
+    const maxSeats = family.plans.reduce((max: number, plan: Plan) => {
+      const oneYearMax = Math.max(...plan.oneYearPricing.map((tier: RampPricing) => tier.minSeats));
+      const threeYearMax = Math.max(...plan.threeYearPricing.map((tier: RampPricing) => tier.minSeats));
       return Math.max(max, oneYearMax, threeYearMax);
     }, 0);
     
@@ -118,27 +174,43 @@ export class PriceCalculatorComponent implements OnInit {
     const selection = this.selections[familyName];
     if (!family || !selection.selectedPlan) return;
 
-    const plan = family.plans.find(p => p.name === selection.selectedPlan);
+    const plan = family.plans.find((p: Plan) => p.name === selection.selectedPlan);
     if (!plan) return;
 
-    const seatPrice = this.getPlanPrice(family, selection.selectedPlan, selection.seats);
+    const pricingBreakdown = this.calculatePricingBreakdown(plan, selection);
+    selection.pricing = pricingBreakdown;
+    this.updateTotal();
+  }
+
+  private calculatePricingBreakdown(plan: Plan, selection: ProductSelection): PriceBreakdown {
+    const family = this.productFamilies.find(f => f.plans.includes(plan));
+    if (!family) {
+      throw new Error('Plan not found in any product family');
+    }
+
+    const seatPrice = this.pricingService.calculatePrice(
+      family,
+      plan.name,
+      selection.seats,
+      selection.packages,
+      selection.apiCalls,
+      this.selectedTerm
+    );
     const freePackages = (plan.freePackagesPerSeat || 0) * selection.seats;
     const extraPackages = Math.max(0, selection.packages - freePackages);
     const apiCallCost = plan.apiPrice ? selection.apiCalls * plan.apiPrice : 0;
 
-    selection.pricing = {
+    return {
       basePrice: 0, // Base price is included in seat price
-      seatPrice,
+      seatPrice: seatPrice / selection.seats, // Get per-seat price
       seatQuantity: selection.seats,
       packagePrice: plan.packagePrice || 0,
       packageQuantity: extraPackages,
       freePackages,
       apiPrice: plan.apiPrice || 0,
       apiCalls: selection.apiCalls,
-      total: (seatPrice * selection.seats) + (extraPackages * (plan.packagePrice || 0)) + apiCallCost
+      total: seatPrice + (extraPackages * (plan.packagePrice || 0)) + apiCallCost
     };
-
-    this.updateTotal();
   }
 
   updateTotal(): void {
@@ -179,13 +251,13 @@ export class PriceCalculatorComponent implements OnInit {
     
     if (!family || !selection.selectedPlan) return 0;
     
-    const plan = family.plans.find(p => p.name === selection.selectedPlan);
+    const plan = family.plans.find((p: Plan) => p.name === selection.selectedPlan);
     if (!plan) return 0;
     
     const pricing = this.selectedTerm === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
     const currentTier = pricing
-      .filter(tier => selection.seats >= tier.minSeats)
-      .sort((a, b) => b.minSeats - a.minSeats)[0];
+      .filter((tier: RampPricing) => selection.seats >= tier.minSeats)
+      .sort((a: RampPricing, b: RampPricing) => b.minSeats - a.minSeats)[0];
       
     return currentTier?.minSeats || 0;
   }
@@ -195,9 +267,14 @@ export class PriceCalculatorComponent implements OnInit {
     const selection = this.selections[familyName];
     if (!selection.selectedPlan) return;
 
-    const queryParams: any = {
+    const queryParams = this.buildSingleCartQueryParams(familyName, selection);
+    this.router.navigate(['/cart'], { queryParams });
+  }
+
+  private buildSingleCartQueryParams(familyName: string, selection: ProductSelection): Record<string, string | number> {
+    const baseParams: Record<string, string | number> = {
       product: familyName,
-      plan: selection.selectedPlan,
+      plan: selection.selectedPlan!,
       term: this.selectedTerm,
       seats: selection.seats
     };
@@ -205,14 +282,14 @@ export class PriceCalculatorComponent implements OnInit {
     // Add Sign-specific parameters if applicable
     if (familyName === 'Nitro Sign') {
       if (selection.packages > 0) {
-        queryParams.packages = selection.packages;
+        baseParams.packages = selection.packages;
       }
       if (selection.apiCalls > 0) {
-        queryParams.apiCalls = selection.apiCalls;
+        baseParams.apiCalls = selection.apiCalls;
       }
     }
 
-    this.router.navigate(['/cart'], { queryParams });
+    return baseParams;
   }
 
   // Return to pricing page
@@ -228,9 +305,13 @@ export class PriceCalculatorComponent implements OnInit {
   }
 
   // Navigate to cart with all configured selections
-    // Add all valid selections to cart and navigate
   addAllToCart(): void {
-    const params: any = {
+    const params = this.buildAllCartQueryParams();
+    this.router.navigate(['/cart'], { queryParams: params });
+  }
+
+  private buildAllCartQueryParams(): Record<string, string | number> {
+    const params: Record<string, string | number> = {
       term: this.selectedTerm,
       fromCalculator: 'true'
     };
@@ -239,7 +320,7 @@ export class PriceCalculatorComponent implements OnInit {
     this.productFamilies.forEach(family => {
       const selection = this.selections[family.name];
       if (selection?.selectedPlan) {
-        const familyKey = family.name.toLowerCase().replace(' ', '');
+        const familyKey = this.getFamilyParamKey(family.name);
         params[`${familyKey}_plan`] = selection.selectedPlan;
         params[`${familyKey}_seats`] = selection.seats;
         
@@ -254,34 +335,19 @@ export class PriceCalculatorComponent implements OnInit {
       }
     });
 
-    // Navigate to cart with all selections
-    this.router.navigate(['/cart'], { queryParams: params });
+    return params;
+  }
+
+  private getFamilyParamKey(familyName: string): string {
+    return familyName.toLowerCase().replace(' ', '');
   }
 
   // Reset calculator to initial state
   resetCalculator(): void {
-    // Reset all selections
     this.productFamilies.forEach(family => {
-      this.selections[family.name] = {
-        selectedPlan: null,
-        seats: 1,
-        packages: 0,
-        apiCalls: 0,
-        pricing: {
-          basePrice: 0,
-          seatPrice: 0,
-          seatQuantity: 0,
-          packagePrice: 0,
-          packageQuantity: 0,
-          freePackages: 0,
-          apiPrice: 0,
-          apiCalls: 0,
-          total: 0
-        }
-      };
+      this.selections[family.name] = this.createInitialSelection();
     });
     
-    // Reset term and totals
     this.selectedTerm = '1year';
     this.totalPrice = 0;
   }
