@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-  // Backend API URL for Render deployment
-  apiUrl: 'https://nitro-price-calculator-api.onrender.com/api',
+  // Backend API URL - using same-origin proxy to avoid CORS
+  apiUrl: '/api',  // Proxied through nginx to avoid CORS
   pricingDataUrl: 'assets/pricing-data.json', // Fallback static data path
   stripe: {
     // Stripe test publishable key for test environment deployment
