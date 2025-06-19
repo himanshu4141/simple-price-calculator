@@ -1,94 +1,112 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, NgZone } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, NgZone, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { PricingService, EstimateRequest, EstimateItemRequest } from '../../services/pricing.service';
-import { StripeService } from '../../services/stripe.service';
 import { HttpClient } from '@angular/common/http';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+
+import {
+  PricingService,
+  EstimateRequest,
+  EstimateItemRequest,
+  BillingTerm
+} from '../../services/pricing.service';
+import { StripeService } from '../../services/stripe.service';
+import { PackageCalculations } from '../../utils/package-calculations.util';
 import { environment } from '../../../environments/environment';
 
 interface CheckoutItem {
-  itemPriceId: string;
-  quantity: number;
+  readonly itemPriceId: string;
+  readonly quantity: number;
 }
 
 interface BillingAddress {
-  firstName: string;
-  lastName: string;
-  line1: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly line1: string;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
 }
 
 interface Customer {
-  id?: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  company?: string;
+  readonly id?: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly email: string;
+  readonly company?: string;
 }
 
 interface CheckoutRequest {
-  customer: Customer;
-  billingAddress: BillingAddress;
-  items: CheckoutItem[];
-  currency: string;
-  billingTerm: string;
-  paymentMethodId?: string;
-  stripeToken?: string;
+  readonly customer: Customer;
+  readonly billingAddress: BillingAddress;
+  readonly items: readonly CheckoutItem[];
+  readonly currency: string;
+  readonly billingTerm: string;
+  readonly paymentMethodId?: string;
+  readonly stripeToken?: string;
 }
 
 interface CheckoutResponse {
-  success: boolean;
-  customerId?: string;
-  subscriptionId?: string;
-  salesContactRequired?: boolean;
-  message?: string;
-  error?: string;
+  readonly success: boolean;
+  readonly customerId?: string;
+  readonly subscriptionId?: string;
+  readonly salesContactRequired?: boolean;
+  readonly message?: string;
+  readonly error?: string;
 }
 
 interface TaxRequest {
-  items: Array<{
-    productFamily: string;
-    planName: string;
-    seats: number;
-    packages?: number;
-    apiCalls?: number;
+  readonly items: Array<{
+    readonly productFamily: string;
+    readonly planName: string;
+    readonly seats: number;
+    readonly packages?: number;
+    readonly apiCalls?: number;
   }>;
-  customerAddress: {
-    line1: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
+  readonly customerAddress: {
+    readonly line1: string;
+    readonly city: string;
+    readonly state: string;
+    readonly zip: string;
+    readonly country: string;
   };
-  currency: string;
+  readonly currency: string;
 }
 
 interface Money {
-  amount: number;
-  currency: string;
+  readonly amount: number;
+  readonly currency: string;
 }
 
 interface TaxBreakdownItem {
-  name: string;
-  rate: number;
-  amount: Money;
-  description: string;
+  readonly name: string;
+  readonly rate: number;
+  readonly amount: Money;
+  readonly description: string;
 }
 
 interface TaxLineItemResponse {
-  description: string;
-  subtotal: Money;
-  taxAmount: Money;
-  total: Money;
+  readonly description: string;
+  readonly subtotal: Money;
+  readonly taxAmount: Money;
+  readonly total: Money;
 }
 
 interface TaxResponse {
-  totalTax: Money;
-  taxBreakdown: TaxBreakdownItem[];
-  lineItems: TaxLineItemResponse[];
+  readonly totalTax: Money;
+  readonly taxBreakdown: readonly TaxBreakdownItem[];
+  readonly lineItems: readonly TaxLineItemResponse[];
+}
+
+interface CheckoutState {
+  readonly isProcessingPayment: boolean;
+  readonly paymentCompleted: boolean;
+  readonly showPaymentError: boolean;
+  readonly salesContactRequired: boolean;
+  readonly estimateCalculated: boolean;
+  readonly taxCalculated: boolean;
 }
 
 @Component({
@@ -96,10 +114,12 @@ interface TaxResponse {
   templateUrl: './checkout-page.component.html',
   styleUrls: ['./checkout-page.component.scss']
 })
-export class CheckoutPageComponent implements OnInit, AfterViewInit {
+export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
+
   @ViewChild('cardElementContainer', { static: false }) cardElementContainer!: ElementRef;
   
-  checkoutForm: FormGroup;
+  checkoutForm!: FormGroup;
   
   // Cart data from query params
   selectedPdfPlan = '';
@@ -108,7 +128,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
   signSeats = 1;
   signPackages = 0;
   signApiCalls = 0;
-  term: '1year' | '3year' = '1year';
+  term: BillingTerm = '1year';
   
   // Checkout state
   isLoading = false;
@@ -128,7 +148,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
   finalTotal = 0;
   
   // Country options for dropdown
-  countries = [
+  readonly countries = [
     { code: 'US', name: 'United States' },
     { code: 'CA', name: 'Canada' },
     { code: 'GB', name: 'United Kingdom' },
@@ -138,15 +158,19 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
   ];
 
   constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private fb: FormBuilder,
-    private pricingService: PricingService,
-    private stripeService: StripeService,
-    private http: HttpClient,
-    private ngZone: NgZone
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly formBuilder: FormBuilder,
+    private readonly pricingService: PricingService,
+    private readonly stripeService: StripeService,
+    private readonly httpClient: HttpClient,
+    private readonly ngZone: NgZone
   ) {
-    this.checkoutForm = this.fb.group({
+    this.initializeForm();
+  }
+
+  private initializeForm(): void {
+    this.checkoutForm = this.formBuilder.group({
       // Customer information
       firstName: ['', [Validators.required, Validators.minLength(2)]],
       lastName: ['', [Validators.required, Validators.minLength(2)]],
@@ -163,35 +187,58 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
-    // Get cart data from query parameters
-    this.route.queryParams.subscribe(params => {
-      this.selectedPdfPlan = params['nitropdf_plan'] || '';
-      this.selectedSignPlan = params['nitrosign_plan'] || '';
-      this.pdfSeats = parseInt(params['nitropdf_seats'], 10) || 1;
-      this.signSeats = parseInt(params['nitrosign_seats'], 10) || 1;
-      this.signPackages = parseInt(params['nitrosign_packages'], 10) || 0;
-      this.signApiCalls = parseInt(params['nitrosign_apiCalls'], 10) || 0;
-      this.term = (params['term'] as '1year' | '3year') || '1year';
-      
-      console.log('🛒 Checkout initialized with cart data:', {
-        pdfPlan: this.selectedPdfPlan,
-        signPlan: this.selectedSignPlan,
-        term: this.term
-      });
-      
-      // Calculate initial estimate
-      this.calculateEstimate();
-    });
-
-    // Watch for address changes to recalculate tax
-    this.checkoutForm.valueChanges.subscribe(() => {
-      if (this.checkoutForm.valid) {
-        this.calculateTax();
-      }
-    });
-
-    // Initialize Stripe
+    this.initializeCartFromQueryParams();
+    this.setupFormValidation();
     this.initializeStripe();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private initializeCartFromQueryParams(): void {
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
+        this.parseCartParameters(params);
+        this.calculateEstimate();
+      });
+  }
+
+  private parseCartParameters(params: any): void {
+    this.selectedPdfPlan = params['nitropdf_plan'] || '';
+    this.selectedSignPlan = params['nitrosign_plan'] || '';
+    this.pdfSeats = this.parseIntegerParam(params['nitropdf_seats'], 1);
+    this.signSeats = this.parseIntegerParam(params['nitrosign_seats'], 1);
+    this.signPackages = this.parseIntegerParam(params['nitrosign_packages'], 0);
+    this.signApiCalls = this.parseIntegerParam(params['nitrosign_apiCalls'], 0);
+    this.term = this.isValidBillingTerm(params['term']) ? params['term'] : '1year';
+    
+    console.log('🛒 Checkout initialized with cart data:', {
+      pdfPlan: this.selectedPdfPlan,
+      signPlan: this.selectedSignPlan,
+      term: this.term
+    });
+  }
+
+  private parseIntegerParam(value: string, defaultValue: number): number {
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
+  }
+
+  private isValidBillingTerm(term: string): term is BillingTerm {
+    return term === '1year' || term === '3year';
+  }
+
+  private setupFormValidation(): void {
+    this.checkoutForm.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (this.checkoutForm.valid) {
+          this.calculateTax();
+        }
+      });
   }
 
   ngAfterViewInit(): void {
@@ -199,7 +246,10 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
     if (this.term === '1year') {
       // Use setTimeout to ensure DOM is fully ready
       setTimeout(() => {
-        this.setupStripeCardElement();
+        this.setupStripeCardElement().catch(error => {
+          console.error('❌ Failed to setup card element in ngAfterViewInit:', error);
+          this.paymentErrors = 'Payment form setup failed. Please refresh the page.';
+        });
       }, 100);
     }
   }
@@ -347,13 +397,13 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
 
     console.log('💰 Calculating tax:', taxRequest);
 
-    this.http.post<TaxResponse>(`${environment.apiUrl}/taxes`, taxRequest).subscribe(
-      response => {
+    this.httpClient.post<TaxResponse>(`${environment.apiUrl}/taxes`, taxRequest).subscribe(
+      (response: TaxResponse) => {
         this.taxAmount = response.totalTax.amount; // Extract amount from Money object
         this.calculateFinalTotal();
         console.log('✅ Tax calculated:', { amount: response.totalTax.amount, currency: response.totalTax.currency });
       },
-      error => {
+      (error: any) => {
         console.warn('⚠️ Failed to calculate tax, proceeding without tax:', error);
         this.taxAmount = 0;
         this.calculateFinalTotal();
@@ -409,6 +459,18 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
     return itemPriceId;
   }
 
+  private getPackageAddonItemPriceId(term: string = '1year'): string {
+    const currency = 'USD';
+    const termSuffix = term === '3year' ? '3-Year' : 'Yearly';
+    return `sign-packages-${currency}-${termSuffix}`;
+  }
+
+  private getApiCallAddonItemPriceId(term: string = '1year'): string {
+    const currency = 'USD';
+    const termSuffix = term === '3year' ? '3-Year' : 'Yearly';
+    return `sign-api-${currency}-${termSuffix}`;
+  }
+
   processCheckout(): void {
     if (this.term === '1year') {
       // For 1-year terms, process payment with Stripe
@@ -421,27 +483,46 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
 
   private async processStripePayment(): Promise<void> {
     this.isProcessingPayment = true;
-    this.isLoading = true;
     this.errorMessage = '';
     this.paymentErrors = '';
 
     const formValue = this.checkoutForm.value;
 
     try {
+      // Ensure card element is properly set up before proceeding
+      if (!this.isCardElementReady()) {
+        console.warn('⚠️ Card element not ready, attempting to set up...');
+        await this.setupStripeCardElement();
+        
+        // Wait a bit more for element to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (!this.isCardElementReady()) {
+          throw new Error('Payment form not ready. Please refresh the page and try again.');
+        }
+      }
+
+      // Set loading state AFTER ensuring card element is ready
+      // This prevents potential DOM issues from Angular re-rendering
+      this.isLoading = true;
+
       // Create Stripe PaymentMethod (more reliable than tokens)
       console.log('🔐 Creating Stripe PaymentMethod...');
       
-      // Small delay to ensure any pending Angular updates are complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const paymentMethodResult = await this.stripeService.createPaymentMethod({
-        name: `${formValue.firstName} ${formValue.lastName}`,
-        email: formValue.email,
-        address_line1: formValue.line1,
-        address_city: formValue.city,
-        address_state: formValue.state,
-        address_zip: formValue.zip,
-        address_country: formValue.country,
+      // Run in NgZone to ensure proper change detection
+      const paymentMethodResult = await this.ngZone.run(async () => {
+        // Extra delay to ensure DOM is stable after setting isLoading
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        return await this.stripeService.createPaymentMethod({
+          name: `${formValue.firstName} ${formValue.lastName}`,
+          email: formValue.email,
+          address_line1: formValue.line1,
+          address_city: formValue.city,
+          address_state: formValue.state,
+          address_zip: formValue.zip,
+          address_country: formValue.country,
+        });
       });
 
       if (paymentMethodResult.error) {
@@ -463,14 +544,12 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
       console.log('✅ Stripe PaymentMethod created:', paymentMethodResult.paymentMethod.id);
 
       // Process checkout with PaymentMethod
-      await this.processCheckoutWithPaymentMethod(paymentMethodResult.paymentMethod);
-      
-    } catch (error) {
-      console.error('❌ Stripe payment processing error:', error);
-      this.paymentErrors = 'Payment processing failed. Please try again.';
-      this.isProcessingPayment = false;
-      this.isLoading = false;
-    }
+      await this.processCheckoutWithPaymentMethod(paymentMethodResult.paymentMethod);      } catch (error: any) {
+        console.error('❌ Stripe payment processing error:', error);
+        this.paymentErrors = error.message || 'Payment processing failed. Please try again.';
+        this.isProcessingPayment = false;
+        this.isLoading = false;
+      }
   }
 
   private async processCheckoutWithPaymentMethod(paymentMethod: any): Promise<void> {
@@ -491,6 +570,22 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
         itemPriceId: this.getChargebeeItemPriceId(this.selectedSignPlan, this.term),
         quantity: this.signSeats
       });
+      
+      // Add packages as specified by user (cart should have already handled free package deduction)
+      if (this.signPackages > 0) {
+        checkoutItems.push({
+          itemPriceId: this.getPackageAddonItemPriceId(this.term),
+          quantity: this.signPackages
+        });
+      }
+      
+      // Add API calls if any (only for Enterprise plan)
+      if (this.selectedSignPlan === 'Nitro Sign Enterprise' && this.signApiCalls > 0) {
+        checkoutItems.push({
+          itemPriceId: this.getApiCallAddonItemPriceId(this.term),
+          quantity: this.signApiCalls
+        });
+      }
     }
 
     const checkoutRequest: CheckoutRequest = {
@@ -520,8 +615,21 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
       paymentMethodId: '***' // Don't log the actual PaymentMethod ID
     });
 
-    this.http.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
-      response => {
+    console.log('🛒 Checkout items being sent:', {
+      selectedPdfPlan: this.selectedPdfPlan,
+      selectedSignPlan: this.selectedSignPlan,
+      pdfSeats: this.pdfSeats,
+      signSeats: this.signSeats,
+      signPackages: this.signPackages,
+      signApiCalls: this.signApiCalls,
+      checkoutItems: checkoutItems.map(item => ({
+        itemPriceId: item.itemPriceId,
+        quantity: item.quantity
+      }))
+    });
+
+    this.httpClient.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
+      (response: CheckoutResponse) => {
         this.isLoading = false;
         this.isProcessingPayment = false;
         
@@ -536,7 +644,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
           this.errorMessage = response.message || 'Checkout failed. Please try again.';
         }
       },
-      error => {
+      (error: any) => {
         this.isLoading = false;
         this.isProcessingPayment = false;
         console.error('❌ Checkout error:', error);
@@ -571,6 +679,22 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
         itemPriceId: this.getChargebeeItemPriceId(this.selectedSignPlan, this.term),
         quantity: this.signSeats
       });
+      
+      // Add packages as specified by user (cart should have already handled free package deduction)
+      if (this.signPackages > 0) {
+        checkoutItems.push({
+          itemPriceId: this.getPackageAddonItemPriceId(this.term),
+          quantity: this.signPackages
+        });
+      }
+      
+      // Add API calls if any (only for Enterprise plan)
+      if (this.selectedSignPlan === 'Nitro Sign Enterprise' && this.signApiCalls > 0) {
+        checkoutItems.push({
+          itemPriceId: this.getApiCallAddonItemPriceId(this.term),
+          quantity: this.signApiCalls
+        });
+      }
     }
 
     const checkoutRequest: CheckoutRequest = {
@@ -594,10 +718,23 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
       billingTerm: this.term
     };
 
-    console.log('🔄 Processing checkout without payment:', checkoutRequest);
+    console.log('� Checkout items being sent (no payment):', {
+      selectedPdfPlan: this.selectedPdfPlan,
+      selectedSignPlan: this.selectedSignPlan,
+      pdfSeats: this.pdfSeats,
+      signSeats: this.signSeats,
+      signPackages: this.signPackages,
+      signApiCalls: this.signApiCalls,
+      checkoutItems: checkoutItems.map(item => ({
+        itemPriceId: item.itemPriceId,
+        quantity: item.quantity
+      }))
+    });
 
-    this.http.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
-      response => {
+    console.log('�🔄 Processing checkout without payment:', checkoutRequest);
+
+    this.httpClient.post<CheckoutResponse>(`${environment.apiUrl}/checkout`, checkoutRequest).subscribe(
+      (response: CheckoutResponse) => {
         this.isLoading = false;
         
         if (response.success) {
@@ -617,7 +754,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
           }
         }
       },
-      error => {
+      (error: any) => {
         this.isLoading = false;
         console.error('❌ Checkout error:', error);
         
@@ -679,5 +816,43 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit {
       if (field.errors?.['minlength']) return `${fieldName} must be at least ${field.errors['minlength'].requiredLength} characters`;
     }
     return '';
+  }
+
+  private isCardElementReady(): boolean {
+    // Check if the card element container exists in DOM
+    const container = document.getElementById('card-element');
+    if (!container) {
+      console.warn('❌ Card element container not found in DOM');
+      return false;
+    }
+
+    // Check if container is visible (not hidden by display:none or visibility:hidden)
+    const computedStyle = window.getComputedStyle(container);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.warn('❌ Card element container is hidden');
+      return false;
+    }
+
+    // Check if element is visible (not hidden by *ngIf)
+    if (this.term !== '1year' || this.checkoutComplete) {
+      console.warn('❌ Card element should not be visible for this term or checkout state');
+      return false;
+    }
+
+    // Check if Stripe components are ready
+    if (!this.stripeReady || !this.paymentMethodCreated) {
+      console.warn('❌ Stripe components not ready', { stripeReady: this.stripeReady, paymentMethodCreated: this.paymentMethodCreated });
+      return false;
+    }
+
+    // Check if Stripe iframe is present (indicates successful mount)
+    const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
+    if (!stripeFrame) {
+      console.warn('❌ Stripe iframe not found in container');
+      return false;
+    }
+
+    console.log('✅ Card element ready check passed');
+    return true;
   }
 }

@@ -1,7 +1,19 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Stripe, StripeElements, StripeCardElement, loadStripe, StripeCardElementOptions } from '@stripe/stripe-js';
+import {
+  Stripe,
+  StripeElements,
+  StripeCardElement,
+  loadStripe,
+  StripeCardElementOptions
+} from '@stripe/stripe-js';
+
 import { environment } from '../../environments/environment';
+
+interface StripeState {
+  readonly isInitialized: boolean;
+  readonly cardElementContainerId: string | null;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -10,13 +22,10 @@ export class StripeService {
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
   private cardElement: StripeCardElement | null = null;
-  private isStripeInitialized = false;
+  private isStripeInitializedState = false;
   private cardElementContainerId: string | null = null;
 
-  // Debug state
-  private lastError: any = null;
-
-  constructor(private http: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
   public getElementsInstance(): StripeElements | null {
     return this.elements;
@@ -24,6 +33,10 @@ export class StripeService {
 
   public getCardElement(): StripeCardElement | null {
     return this.cardElement;
+  }
+
+  public get isStripeInitialized(): boolean {
+    return this.isStripeInitializedState;
   }
 
   private getCardElementStyle(): StripeCardElementOptions {
@@ -49,7 +62,7 @@ export class StripeService {
    * Initialize Stripe with publishable key
    */
   async initializeStripe(): Promise<void> {
-    if (this.isStripeInitialized && this.stripe) {
+    if (this.isStripeInitializedState && this.stripe) {
       console.log('Stripe already initialized.');
       return;
     }
@@ -58,12 +71,11 @@ export class StripeService {
       if (!this.stripe) {
         throw new Error('Stripe.js failed to load.');
       }
-      this.isStripeInitialized = true;
+      this.isStripeInitializedState = true;
       console.log('✅ Stripe.js loaded and initialized successfully.');
     } catch (error) {
       console.error('❌ Error loading Stripe.js:', error);
-      this.lastError = error;
-      this.isStripeInitialized = false;
+      this.isStripeInitializedState = false;
       throw error;
     }
   }
@@ -85,7 +97,6 @@ export class StripeService {
       console.log('✅ Stripe Elements created');
     } catch (error) {
       console.error('❌ Error creating Stripe Elements:', error);
-      this.lastError = error;
       throw error;
     }
   }
@@ -100,7 +111,25 @@ export class StripeService {
       elementsCreated: !!this.elements
     });
 
-    // Clean up any existing card element completely
+    await this.cleanupExistingCardElement();
+    this.validateElementsAndContainer(containerId);
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      throw new Error(`Container with ID "${containerId}" not found`);
+    }
+
+    try {
+      await this.mountCardElementToContainer(container, containerId);
+      await this.verifyCardElementMount(container);
+      return this.cardElement;
+    } catch (error) {
+      console.error('❌ Error creating card element:', error);
+      throw error;
+    }
+  }
+
+  private async cleanupExistingCardElement(): Promise<void> {
     if (this.cardElement) {
       console.log('🧹 Destroying existing card element before creating new one');
       try {
@@ -111,7 +140,9 @@ export class StripeService {
       }
       this.cardElement = null;
     }
+  }
 
+  private validateElementsAndContainer(containerId: string): void {
     if (!this.elements) {
       throw new Error('Elements not created. Call createElements() first.');
     }
@@ -120,46 +151,52 @@ export class StripeService {
     if (!container) {
       throw new Error(`Container with ID "${containerId}" not found`);
     }
+  }
 
+  private async mountCardElementToContainer(container: HTMLElement, containerId: string): Promise<void> {
     // Clear container completely and ensure it's ready
     container.innerHTML = '';
     
     // Wait a moment for DOM to be fully ready
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await this.delay(50);
 
-    try {
-      // Create and mount card element
-      this.cardElement = this.elements.create('card', this.getCardElementStyle());
-      this.cardElement.mount(`#${containerId}`);
-      this.cardElementContainerId = containerId;
+    // Create and mount card element
+    this.cardElement = this.elements!.create('card', this.getCardElementStyle());
+    this.cardElement.mount(`#${containerId}`);
+    this.cardElementContainerId = containerId;
 
-      console.log('✅ Card Element mounted in container:', containerId);
+    console.log('✅ Card Element mounted in container:', containerId);
 
-      // Add event listeners for real-time validation
-      this.cardElement.on('change', (event) => {
-        if (event.error) {
-          console.warn('Card element validation error:', event.error);
-        } else {
-          console.log('Card element is valid');
-        }
-      });
+    // Add event listeners for real-time validation
+    this.setupCardElementEventListeners();
+  }
 
-      // Verify mount was successful by checking for Stripe's iframe
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
-      if (!stripeFrame) {
-        throw new Error('Card Element mount verification failed - no Stripe iframe found');
+  private setupCardElementEventListeners(): void {
+    if (!this.cardElement) return;
+
+    this.cardElement.on('change', (event) => {
+      if (event.error) {
+        console.warn('Card element validation error:', event.error);
+      } else {
+        console.log('Card element is valid');
       }
-      
-      console.log('✅ Card Element mount verified with iframe present');
-      return this.cardElement;
-    } catch (error) {
-      console.error('❌ Error creating/mounting card element:', error);
-      this.cardElement = null;
-      this.cardElementContainerId = null;
-      throw error;
+    });
+  }
+
+  private async verifyCardElementMount(container: HTMLElement): Promise<void> {
+    // Verify mount was successful by checking for Stripe's iframe
+    await this.delay(100);
+    
+    const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
+    if (!stripeFrame) {
+      throw new Error('Card Element mount verification failed - no Stripe iframe found');
     }
+    
+    console.log('✅ Card Element mount verified with iframe present');
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -196,8 +233,7 @@ export class StripeService {
 
     try {
       // Capture DOM reference and debug current state
-      console.log('🔍 Pre-validation check:');
-      this.debugElementState();
+      console.log('🔍 Pre-validation check completed');
       
       const container = document.getElementById(this.cardElementContainerId);
       if (!container) {
@@ -208,15 +244,21 @@ export class StripeService {
       // Check if the element appears to be mounted by looking for Stripe's iframe
       const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
       if (!stripeFrame) {
-        console.warn('⚠️ Stripe iframe not found, element may be unmounted');
-        return { error: { message: 'Payment form not ready, please try again' } };
+        console.error('❌ Stripe iframe not found - element appears unmounted');
+        return { error: { message: 'Payment form not ready. Please refresh the page and try again.' } };
+      }
+
+      // Verify the container is visible and accessible
+      const computedStyle = window.getComputedStyle(container);
+      if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+        console.error('❌ Card element container is hidden');
+        return { error: { message: 'Payment form is not visible. Please ensure the form is displayed.' } };
       }
 
       console.log('🔄 About to call stripe.createPaymentMethod...');
       
       // Final debug check right before Stripe call
-      console.log('🔍 Final pre-call check:');
-      this.debugElementState();
+      console.log('🔍 Final pre-call validation completed');
       
       // Create PaymentMethod - this is the critical call that's been failing
       const result = await this.stripe.createPaymentMethod({
@@ -414,7 +456,6 @@ export class StripeService {
       }
     } catch (error) {
       console.error("❌ Error during forceRemountCardElement in StripeService:", error);
-      this.lastError = error;
       throw error;
     }
   }
@@ -437,110 +478,4 @@ export class StripeService {
     return this.isStripeInitialized && this.stripe !== null;
   }
 
-  /**
-   * Get current state for debugging
-   */
-  getDebugState(): any {
-    return {
-      stripeLoaded: this.isStripeJsLoaded(),
-      stripeInitialized: this.isStripeInitialized,
-      elementsInitialized: !!this.elements,
-      cardElementMounted: !!this.cardElement && !!this.cardElementContainerId,
-      lastError: this.lastError
-    };
-  }
-
-  /**
-   * Check DOM state and Stripe iframe presence for debugging
-   */
-  checkElementDOMState(): { containerExists: boolean; containerVisible: boolean; containerHtml: string; stripeFrames: number } {
-    const container = document.getElementById(this.cardElementContainerId || 'card-element');
-    
-    // Look for Stripe iframes more comprehensively
-    const stripeFrameSelectors = [
-      'iframe[name^="__privateStripeFrame"]',
-      'iframe[src*="stripe"]',
-      'iframe[title*="stripe"]',
-      '.StripeElement iframe',
-      '#card-element iframe'
-    ];
-    
-    let stripeFrames = 0;
-    for (const selector of stripeFrameSelectors) {
-      const frames = document.querySelectorAll(selector);
-      stripeFrames += frames.length;
-      if (frames.length > 0) {
-        console.log(`Found ${frames.length} Stripe frames with selector: ${selector}`);
-      }
-    }
-    
-    return {
-      containerExists: container !== null,
-      containerVisible: container ? container.offsetParent !== null : false,
-      containerHtml: container ? container.innerHTML : '',
-      stripeFrames: stripeFrames
-    };
-  }
-
-  /**
-   * Test element readiness with comprehensive debugging
-   */
-  async testElementReadiness(): Promise<{ ready: boolean; errors: string[]; domState: any; elementState: any }> {
-    const errors: string[] = [];
-    const domState = this.checkElementDOMState();
-    const elementState = this.getDebugState();
-
-    if (!this.stripe) errors.push('Stripe not initialized');
-    if (!this.elements) errors.push('Elements not created');
-    if (!this.cardElement) errors.push('Card element not mounted');
-    if (!domState.containerExists) errors.push('Container element not found');
-    if (!domState.containerVisible) errors.push('Container element not visible');
-    if (domState.stripeFrames === 0) errors.push('No Stripe iframes detected');
-
-    return {
-      ready: errors.length === 0,
-      errors,
-      domState,
-      elementState
-    };
-  }
-
-  /**
-   * Debug method to check element state
-   */
-  debugElementState(): void {
-    console.log('🔍 Debugging Stripe element state:', {
-      stripe: !!this.stripe,
-      elements: !!this.elements,
-      cardElement: !!this.cardElement,
-      containerId: this.cardElementContainerId
-    });
-
-    if (this.cardElementContainerId) {
-      // Try multiple ways to find the container
-      const container = document.getElementById(this.cardElementContainerId);
-      const containerByQuery = document.querySelector(`#${this.cardElementContainerId}`);
-      const allElements = document.querySelectorAll(`[id="${this.cardElementContainerId}"]`);
-      
-      console.log('🔍 Container state:', {
-        containerExists: !!container,
-        containerByQueryExists: !!containerByQuery,
-        allElementsCount: allElements.length,
-        containerHTML: container ? container.innerHTML.substring(0, 200) : 'N/A'
-      });
-
-      if (container) {
-        const frames = container.querySelectorAll('iframe');
-        const stripeFrames = container.querySelectorAll('iframe[name^="__privateStripeFrame"]');
-        console.log('🔍 iframes found:', {
-          totalFrames: frames.length,
-          stripeFrames: stripeFrames.length
-        });
-        
-        frames.forEach((frame, index) => {
-          console.log(`  Frame ${index}:`, frame.getAttribute('name'));
-        });
-      }
-    }
-  }
 }

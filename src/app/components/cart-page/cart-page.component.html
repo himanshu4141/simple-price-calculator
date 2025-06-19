@@ -161,7 +161,14 @@
         <div class="product-cost">
           <div class="breakdown">
             <div>{{ item.seats }} seats × {{ term === '1year' ? '1 year' : '3 years' }}</div>
-            <div *ngIf="item.packages">{{ item.packages }} packages</div>
+            <div *ngIf="item.packages">
+              <span *ngIf="item.productFamily === 'Nitro Sign' && getFreePackages() > 0">
+                {{ item.packages }} packages ({{ getFreePackages() }} free + {{ getExtraPackages() }} paid)
+              </span>
+              <span *ngIf="item.productFamily !== 'Nitro Sign' || getFreePackages() === 0">
+                {{ item.packages }} packages
+              </span>
+            </div>
             <div *ngIf="item.apiCalls">{{ item.apiCalls }} API calls/month</div>
           </div>
           <div class="amount">{{ item.price | currency }}/year</div>

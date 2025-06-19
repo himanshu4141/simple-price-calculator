@@ -1,14 +1,16 @@
 <div class="checkout-container">
   <!-- Header -->
   <div class="checkout-header">
-    <h1>Complete Your Order</h1>
-    <p class="subtitle">Secure checkout for your Nitro products</p>
+    <div class="header-content">
+      <h1>Complete Your Order</h1>
+      <p class="subtitle">Secure checkout for your Nitro products</p>
+    </div>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="isLoading" class="loading-overlay">
+  <!-- Loading State (only for initial loading, not payment processing) -->
+  <div *ngIf="isLoading && !checkoutForm" class="loading-overlay">
     <div class="spinner"></div>
-    <p>Processing your order...</p>
+    <p>Loading checkout form...</p>
   </div>
 
   <!-- Checkout Complete State -->
@@ -20,9 +22,13 @@
   </div>
 
   <!-- Main Checkout Form -->
-  <div *ngIf="!isLoading && !checkoutComplete" class="checkout-content">
+  <div *ngIf="!checkoutComplete" class="checkout-content" [class.processing]="isLoading">
     
-    <!-- Order Summary -->
+    <!-- Processing Overlay (shown during payment processing but keeps form visible) -->
+    <div *ngIf="isLoading" class="processing-overlay">
+      <div class="spinner"></div>
+      <p>Processing your order...</p>
+    </div>
     <div class="order-summary">
       <h2>Order Summary</h2>
       
@@ -207,43 +213,15 @@
       <!-- Payment Information Section (1-year terms only) -->
       <div *ngIf="term === '1year' && !checkoutComplete" class="form-section">
         <h3>Payment Information</h3>
-        
-        <div class="payment-security">
-          <div class="security-badges">
-            <span class="security-badge">🔒 SSL Secured</span>
-            <span class="security-badge">💳 Stripe Powered</span>
-          </div>
-          <p class="security-note">Your payment information is encrypted and secure</p>
-        </div>
-
-        <div class="accepted-cards">
-          <span class="card-label">Accepted Cards:</span>
-          <div class="card-icons">
-            <span class="card-icon">💳 Visa</span>
-            <span class="card-icon">💳 Mastercard</span>
-            <span class="card-icon">💳 Amex</span>
-            <span class="card-icon">💳 Discover</span>
-          </div>
-        </div>
 
         <div class="payment-form">
           <div class="form-group">
-            <label for="card-element">Payment Information *</label>
+            <label for="card-element">Card Details *</label>
             <div #cardElementContainer id="card-element" class="card-element">
               <!-- Stripe Card Element will mount here -->
             </div>
             <div *ngIf="paymentErrors" class="error-message">
               {{ paymentErrors }}
-            </div>
-          </div>
-          
-          <div class="payment-summary">
-            <div class="payment-amount">
-              <span>Total to be charged:</span>
-              <span class="amount">${{ finalTotal.toFixed(2) }} USD</span>
-            </div>
-            <div class="billing-term-reminder">
-              <span>Billing: Annual subscription ({{ term === '1year' ? '1 Year' : '3 Years' }})</span>
             </div>
           </div>
         </div>
@@ -315,6 +293,17 @@
           Modify Order
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Subtle Security Footer -->
+  <div class="security-footer">
+    <div class="security-info">
+      <span class="security-item">🔒 SSL Secured</span>
+      <span class="security-divider">•</span>
+      <span class="security-item">Powered by Stripe</span>
+      <span class="security-divider">•</span>
+      <span class="security-item">Your payment information is encrypted and secure</span>
     </div>
   </div>
 </div>

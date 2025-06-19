@@ -6,71 +6,6 @@ import io.circe.generic.semiauto._
 // Core domain models
 case class Money(amount: BigDecimal, currency: String)
 
-case class PricingTier(
-  minQuantity: Int,
-  maxQuantity: Option[Int],
-  pricePerUnit: Money
-)
-
-case class Addon(
-  id: String,
-  name: String,
-  description: String,
-  pricingTiers: List[PricingTier],
-  billingTerm: BillingTerm
-)
-
-case class Plan(
-  id: String,
-  name: String,
-  description: String,
-  price: Money,
-  billingTerm: BillingTerm
-)
-
-sealed trait BillingTerm {
-  def value: String
-}
-
-object BillingTerm {
-  case object OneYear extends BillingTerm { val value = "1-year" }
-  case object ThreeYear extends BillingTerm { val value = "3-year" }
-  
-  def fromString(value: String): BillingTerm = value.toLowerCase match {
-    case "1-year" | "1year" | "annual" => OneYear
-    case "3-year" | "3year" | "triennial" => ThreeYear
-    case _ => throw new IllegalArgumentException(s"Unknown billing term: $value")
-  }
-}
-
-// Request/Response models
-case class EstimateRequest(
-  items: List[EstimateItem],
-  currency: String,
-  billingTerm: String
-)
-
-case class EstimateItem(
-  addonId: String,
-  quantity: Int
-)
-
-case class EstimateResponse(
-  items: List[EstimateItemResponse],
-  subtotal: Money,
-  total: Money,
-  billingTerm: String
-)
-
-case class EstimateItemResponse(
-  addonId: String,
-  addonName: String,
-  quantity: Int,
-  unitPrice: Money,
-  totalPrice: Money,
-  appliedTier: PricingTier
-)
-
 // Pricing estimate API models (different from legacy addon-based estimates)
 case class PricingEstimateItemRequest(
   productFamily: String,
@@ -192,42 +127,6 @@ case class ChargebeeItemPrice(
 case class ProductStructure(
   items: List[ChargebeeItem],
   itemPrices: List[ChargebeeItemPrice]
-)
-
-// Legacy PC 1.0 models (kept for backward compatibility)
-case class ChargebeeDiscoveryResponse(
-  plans: List[ChargebeePlan],
-  addons: List[ChargebeeAddon],
-  discoveredAt: String,
-  site: String
-)
-
-case class ChargebeePlan(
-  id: String,
-  name: String,
-  price: Long, // in cents
-  currency: String,
-  period: Int,
-  periodUnit: String,
-  status: String
-)
-
-case class ChargebeeAddon(
-  id: String,
-  name: String,
-  addonType: String,
-  chargeType: String,
-  price: Long, // in cents
-  currency: String,
-  pricingModel: String,
-  tiers: Option[List[ChargebeeTier]],
-  status: String
-)
-
-case class ChargebeeTier(
-  startingUnit: Int,
-  endingUnit: Option[Int],
-  price: Long // in cents
 )
 
 // Health check models
@@ -469,26 +368,6 @@ object JsonCodecs {
   implicit val moneyEncoder: Encoder[Money] = deriveEncoder[Money]
   implicit val moneyDecoder: Decoder[Money] = deriveDecoder[Money]
   
-  // BillingTerm custom codec
-  implicit val billingTermEncoder: Encoder[BillingTerm] = Encoder.encodeString.contramap(_.value)
-  implicit val billingTermDecoder: Decoder[BillingTerm] = Decoder.decodeString.emap { str =>
-    try {
-      Right(BillingTerm.fromString(str))
-    } catch {
-      case _: IllegalArgumentException => Left(s"Invalid billing term: $str")
-    }
-  }
-  
-  // Core domain types
-  implicit val pricingTierEncoder: Encoder[PricingTier] = deriveEncoder[PricingTier]
-  implicit val pricingTierDecoder: Decoder[PricingTier] = deriveDecoder[PricingTier]
-  
-  implicit val addonEncoder: Encoder[Addon] = deriveEncoder[Addon]
-  implicit val addonDecoder: Decoder[Addon] = deriveDecoder[Addon]
-  
-  implicit val planEncoder: Encoder[Plan] = deriveEncoder[Plan]
-  implicit val planDecoder: Decoder[Plan] = deriveDecoder[Plan]
-  
   // Chargebee models
   implicit val chargebeeItemEncoder: Encoder[ChargebeeItem] = deriveEncoder[ChargebeeItem]
   implicit val chargebeeItemDecoder: Decoder[ChargebeeItem] = deriveDecoder[ChargebeeItem]
@@ -508,19 +387,6 @@ object JsonCodecs {
   
   implicit val healthResponseEncoder: Encoder[HealthResponse] = deriveEncoder[HealthResponse]
   implicit val healthResponseDecoder: Decoder[HealthResponse] = deriveDecoder[HealthResponse]
-  
-  // Estimate types
-  implicit val estimateItemEncoder: Encoder[EstimateItem] = deriveEncoder[EstimateItem]
-  implicit val estimateItemDecoder: Decoder[EstimateItem] = deriveDecoder[EstimateItem]
-  
-  implicit val estimateRequestEncoder: Encoder[EstimateRequest] = deriveEncoder[EstimateRequest]
-  implicit val estimateRequestDecoder: Decoder[EstimateRequest] = deriveDecoder[EstimateRequest]
-  
-  implicit val estimateItemResponseEncoder: Encoder[EstimateItemResponse] = deriveEncoder[EstimateItemResponse]
-  implicit val estimateItemResponseDecoder: Decoder[EstimateItemResponse] = deriveDecoder[EstimateItemResponse]
-  
-  implicit val estimateResponseEncoder: Encoder[EstimateResponse] = deriveEncoder[EstimateResponse]
-  implicit val estimateResponseDecoder: Decoder[EstimateResponse] = deriveDecoder[EstimateResponse]
   
   implicit val pricingApiResponseEncoder: Encoder[PricingApiResponse] = deriveEncoder[PricingApiResponse]
   implicit val pricingApiResponseDecoder: Decoder[PricingApiResponse] = deriveDecoder[PricingApiResponse]
