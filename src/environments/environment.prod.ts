@@ -1,9 +1,11 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.nitro-price-calculator.com/api', // Production API URL
+  // Backend API URL for Render deployment
+  apiUrl: 'https://nitro-price-calculator-api.onrender.com/api',
   pricingDataUrl: 'assets/pricing-data.json', // Fallback static data path
   stripe: {
-    publishableKey: 'YOUR_ACTUAL_STRIPE_LIVE_PUBLISHABLE_KEY_HERE', // Replace with your actual Stripe live publishable key
-    environment: 'live'
+    // Stripe test publishable key for test environment deployment
+    publishableKey: 'pk_test_8Wd4WCLUXl1N7vEOu77Ah96g',
+    environment: 'test' // Using test environment for this deployment
   }
 };

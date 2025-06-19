@@ -1,0 +1,82 @@
+# Render deployment configuration
+# This file defines how Render should deploy both frontend and backend services
+
+services:
+  # Backend Service (Scala API)
+  - type: web
+    name: nitro-price-calculator-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Server Configuration
+      - key: PORT
+        value: 8080
+      - key: ENVIRONMENT
+        value: production
+      - key: JAVA_OPTS
+        value: "-Xmx512m -Xms256m -XX:+UseG1GC -Dfile.encoding=UTF-8"
+      
+      # Chargebee Configuration (Test Environment)
+      - key: CHARGEBEE_SITE
+        value: nitro-ubb-test
+      - key: CHARGEBEE_API_KEY
+        sync: false  # This is a secret, set in Render dashboard
+      - key: CHARGEBEE_GATEWAY_ACCOUNT_ID
+        value: gw_BTU37EUmr7R4M6lX
+      
+      # Stripe Configuration (Test Environment)
+      - key: STRIPE_PUBLIC_KEY
+        value: pk_test_8Wd4WCLUXl1N7vEOu77Ah96g
+      - key: STRIPE_SECRET_KEY
+        sync: false  # This is a secret, set in Render dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false  # This is a secret, set in Render dashboard
+      
+      # Avalara Configuration (Mock by default)
+      - key: AVALARA_ENABLED
+        value: false
+      
+      # Feature Flags
+      - key: FEATURES_USE_REAL_AVALARA
+        value: false
+      - key: FEATURES_ENABLE_WEBHOOKS
+        value: true
+      - key: FEATURES_ENABLE_3YEAR_CHECKOUT
+        value: false
+
+  # Frontend Service (Angular App)
+  - type: web
+    name: nitro-price-calculator-frontend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Build Configuration
+      - key: NODE_ENV
+        value: production
+      
+      # Backend API URL (will be updated after backend deployment)
+      - key: API_BASE_URL
+        value: https://nitro-price-calculator-api.onrender.com
+      
+      # Stripe Configuration (Frontend)
+      - key: STRIPE_PUBLISHABLE_KEY
+        value: pk_test_8Wd4WCLUXl1N7vEOu77Ah96g
+
+# Database (if needed later)
+# databases:
+#   - name: nitro-calculator-db
+#     plan: free
+#     databaseName: nitro_calculator
+#     user: nitro_user
