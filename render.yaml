@@ -1,5 +1,13 @@
 # Render deployment configuration
-# This file defines how Render should deploy both frontend and backend services
+# This file define  # Frontend Service (Angular App)
+  - type: web
+    name: nitro-price-calculator-frontend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    plan: free
+    region: oregon
+    branch: deploy
 
 services:
   # Backend Service (Scala API)
@@ -10,7 +18,7 @@ services:
     dockerContext: ./backend
     plan: free
     region: oregon
-    branch: main
+    branch: deploy
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -58,7 +66,7 @@ services:
     dockerContext: ./
     plan: free
     region: oregon
-    branch: main
+    branch: deploy
     healthCheckPath: /health
     autoDeploy: true
     envVars:
