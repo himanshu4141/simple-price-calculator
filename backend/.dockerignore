@@ -1,0 +1,46 @@
+# Frontend files (not needed for backend build)
+src/app
+src/assets
+src/environments
+src/styles
+angular.json
+package*.json
+tsconfig*.json
+node_modules
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs
+
+# Logs
+*.log
+
+# Temporary files
+tmp
+temp
+
+# SBT specific
+target/streams
+target/scala-*/classes
+target/scala-*/test-classes
+project/target
+project/project/target
+
+# Environment files
+.env
+.env.local
+.env.*.local

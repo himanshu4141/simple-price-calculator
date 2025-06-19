@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build outputs
+dist
+target
+*.log
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs
+
+# Test files
+*.spec.ts
+e2e
+
+# Environment files (will be set via Render environment variables)
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp
+temp
+
+# Backend specific (for frontend builds)
+backend/
+*.sbt
+*.scala
+
+# Frontend specific (for backend builds)
+src/
+angular.json
+package*.json
+tsconfig*.json
