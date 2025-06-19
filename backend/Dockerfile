@@ -31,10 +31,10 @@ COPY src/ src/
 RUN sbt clean assembly
 
 # Stage 2: Runtime stage with minimal JRE
-FROM openjdk:21-jre-slim
+FROM eclipse-temurin:21-jre-alpine
 
 # Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
