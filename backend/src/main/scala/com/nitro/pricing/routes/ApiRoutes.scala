@@ -315,13 +315,14 @@ class ApiRoutes(
   private val healthRoutes: Route = {
     path("health") {
       get {
-        logger.debug("Health check request received")
+        logger.info("Health check request received")
         
         val chargebeeHealth = chargebeeClient.testConnection()
         
         onComplete(chargebeeHealth) {
           case Success(isHealthy) =>
             val status = if (isHealthy) StatusCodes.OK else StatusCodes.ServiceUnavailable
+            logger.info(s"Health check completed - Chargebee: ${if (isHealthy) "healthy" else "unhealthy"}")
             
             val healthResponse = HealthResponse(
               status = if (isHealthy) "healthy" else "unhealthy",
