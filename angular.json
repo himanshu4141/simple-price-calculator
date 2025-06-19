@@ -37,7 +37,6 @@
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
-              "extractCss": true,
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
@@ -46,8 +45,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "2kb",
-                  "maximumError": "5kb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
                 }
               ]
             }

@@ -192,3 +192,11 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Environment and deployment files (sensitive)
+.env
+.env.*
+!.env.example
+ENVIRONMENT_VARIABLES.md
+RENDER_DEPLOYMENT_GUIDE.md
+DOCKER_SUCCESS_SUMMARY.md

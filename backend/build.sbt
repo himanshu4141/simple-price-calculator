@@ -43,3 +43,20 @@ lazy val root = (project in file("."))
       "org.apache.pekko" %% "pekko-testkit" % "1.1.3" % Test
     )
   )
+
+// Assembly configuration
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case PathList("reference.conf") => MergeStrategy.concat
+  case PathList("application.conf") => MergeStrategy.concat
+  case "logback.xml" => MergeStrategy.last
+  case x if x.endsWith(".proto") => MergeStrategy.rename
+  case x if x.endsWith(".class") => MergeStrategy.last
+  case x if x.endsWith(".properties") => MergeStrategy.last
+  case x if x.endsWith(".xml") => MergeStrategy.last
+  case x if x.endsWith(".txt") => MergeStrategy.last
+  case x if x.endsWith(".conf") => MergeStrategy.concat
+  case x => MergeStrategy.first
+}
+
+assembly / assemblyJarName := "simple-price-calculator-assembly-0.1.0-SNAPSHOT.jar"

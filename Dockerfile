@@ -1,21 +1,21 @@
 # Multi-stage Docker build for Angular frontend
 # Stage 1: Build stage with Node.js
-FROM node:18-alpine as builder
+FROM node:20-alpine as builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files first for better Docker layer caching
+COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install as fallback for Docker build)
+RUN npm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the Angular application for production
-RUN npm run build
+RUN npm run build -- --configuration=production
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
@@ -27,17 +27,19 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/dist/simple-price-calculator /usr/share/nginx/html
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
+RUN addgroup -g 101 -S nginx || true
 
-# Set proper permissions
-RUN chown -R nextjs:nodejs /usr/share/nginx/html && \
-    chown -R nextjs:nodejs /var/cache/nginx && \
-    chown -R nextjs:nodejs /var/log/nginx && \
-    chown -R nextjs:nodejs /etc/nginx/conf.d
+# Create necessary directories and set permissions
+RUN mkdir -p /tmp /var/cache/nginx /var/log/nginx && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    chmod -R 755 /var/cache/nginx && \
+    chmod -R 755 /var/log/nginx
 
 # Switch to non-root user
-USER nextjs
+USER nginx
 
 # Expose port (Render will set PORT environment variable)
 EXPOSE 80

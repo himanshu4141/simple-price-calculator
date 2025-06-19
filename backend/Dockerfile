@@ -1,6 +1,6 @@
 # Multi-stage Docker build for Scala backend
-# Stage 1: Build stage with SBT and Scala
-FROM openjdk:21-jdk-slim as builder
+# Stage 1: Build stage with SBT and Scala  
+FROM eclipse-temurin:21-jdk AS builder
 
 # Install necessary tools
 RUN apt-get update && apt-get install -y \
@@ -9,10 +9,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install SBT
-RUN curl -fL https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux.gz | gzip -d > cs && \
-    chmod +x cs && \
-    ./cs install sbt && \
-    ln -s /root/.local/share/coursier/bin/sbt /usr/local/bin/sbt
+RUN curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.7.deb && \
+    dpkg -i sbt.deb && \
+    rm sbt.deb
 
 # Set working directory
 WORKDIR /app
@@ -37,7 +36,7 @@ FROM eclipse-temurin:21-jre-alpine
 RUN apk add --no-cache curl
 
 # Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN addgroup -g 1001 -S appuser && adduser -S -u 1001 -G appuser appuser
 
 # Set working directory
 WORKDIR /app
