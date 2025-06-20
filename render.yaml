@@ -12,7 +12,6 @@ services:
     branch: main
     healthCheckPath: /api/health
     autoDeploy: true
-    previewsEnabled: true  # Enable PR previews
     pullRequestPreviewsEnabled: true  # Automatic PR previews (use [skip preview] to skip)
     envVars:
       # Server Configuration
@@ -62,7 +61,6 @@ services:
     branch: main
     healthCheckPath: /health
     autoDeploy: true
-    previewsEnabled: true  # Enable PR previews
     pullRequestPreviewsEnabled: true  # Automatic PR previews (use [skip preview] to skip)
     envVars:
       # Build Configuration
