@@ -30,7 +30,7 @@ object Main extends App with LazyLogging {
     "CHARGEBEE_SITE", "CHARGEBEE_API_KEY", "CHARGEBEE_GATEWAY_ACCOUNT_ID",
     "STRIPE_PUBLIC_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
     "AVALARA_ENABLED", "AVALARA_BASE_URL", "AVALARA_API_KEY",
-    "FEATURES_USE_REAL_AVALARA", "FEATURES_ENABLE_WEBHOOKS", "FEATURES_ENABLE_3YEAR_CHECKOUT"
+    "FEATURES_ENABLE_WEBHOOKS", "FEATURES_ENABLE_3YEAR_CHECKOUT"
   )
   
   criticalEnvVars.foreach { envVar =>
@@ -57,7 +57,7 @@ object Main extends App with LazyLogging {
     "server.host", "server.port",
     "chargebee.site", "chargebee.api-key", "chargebee.gateway-account-id",
     "stripe.public-key", "stripe.secret-key",
-    "avalara.enabled", "features.use-real-avalara"
+    "avalara.enabled"
   )
   
   configProps.foreach { prop =>
@@ -83,7 +83,7 @@ object Main extends App with LazyLogging {
     logger.info(s"Stripe public key: ${config.stripe.publicKey}")
     logger.info(s"Stripe secret key: ${if (config.stripe.secretKey.nonEmpty) "[REDACTED]" else "NOT_SET"}")
     logger.info(s"Avalara enabled: ${config.avalara.enabled}")
-    logger.info(s"Feature flags: useRealAvalara=${config.features.useRealAvalara}, enableWebhooks=${config.features.enableWebhooks}, enable3YearCheckout=${config.features.enable3YearCheckout}")
+    logger.info(s"Feature flags: enableWebhooks=${config.features.enableWebhooks}, enable3YearCheckout=${config.features.enable3YearCheckout}")
     
     // Validate critical configuration
     logger.info("=== CONFIGURATION VALIDATION ===")
@@ -160,7 +160,7 @@ object Main extends App with LazyLogging {
         logger.info(s"🔐 Chargebee API configured: ${config.chargebee.apiKey != "test-key"}")
         logger.info(s"💳 Stripe configured: ${config.stripe.secretKey != "sk_test_default"}")
         logger.info(s"📊 Avalara enabled: ${config.avalara.enabled}")
-        logger.info(s"🎛️  Feature flags: useRealAvalara=${config.features.useRealAvalara}, enableWebhooks=${config.features.enableWebhooks}, enable3YearCheckout=${config.features.enable3YearCheckout}")
+        logger.info(s"🎛️  Feature flags: enableWebhooks=${config.features.enableWebhooks}, enable3YearCheckout=${config.features.enable3YearCheckout}")
         
         logger.info("=== STARTUP COMPLETE ===")
         

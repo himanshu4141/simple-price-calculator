@@ -4,11 +4,14 @@ import com.nitro.pricing.models._
 import com.nitro.pricing.config.AvalaraConfig
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sttp.client3._
+import sttp.client3.asynchttpclient.future.AsyncHttpClientFutureBackend
 import scala.concurrent.duration._
 
 class TaxCalculationServiceSpec extends AsyncFlatSpec with Matchers {
 
-  val mockConfig = AvalaraConfig(enabled = false, None, None, 30.seconds)
+  implicit val backend: SttpBackend[scala.concurrent.Future, Any] = AsyncHttpClientFutureBackend()
+  val mockConfig = AvalaraConfig(enabled = false, "", "", "", 30.seconds)
   val taxService = new TaxCalculationService(mockConfig)
 
   "TaxCalculationService" should "calculate US tax correctly" in {
@@ -21,7 +24,7 @@ class TaxCalculationServiceSpec extends AsyncFlatSpec with Matchers {
         country = "US"
       ),
       lineItems = List(
-        TaxLineItem("Nitro PDF Plus", Money(100.00, "USD"))
+        TaxLineItem("Nitro PDF Plus", Money(100.00, "USD"), true)
       ),
       currency = "USD"
     )

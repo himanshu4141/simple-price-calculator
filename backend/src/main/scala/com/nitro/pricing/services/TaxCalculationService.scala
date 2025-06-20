@@ -3,17 +3,19 @@ package com.nitro.pricing.services
 import com.nitro.pricing.models._
 import com.nitro.pricing.config.AvalaraConfig
 import com.typesafe.scalalogging.LazyLogging
+import sttp.client3.SttpBackend
 import scala.concurrent.{ExecutionContext, Future}
 
-class TaxCalculationService(config: AvalaraConfig)(implicit ec: ExecutionContext) extends LazyLogging {
+class TaxCalculationService(config: AvalaraConfig)(implicit ec: ExecutionContext, backend: SttpBackend[Future, _]) extends LazyLogging {
+  
+  private val avalaraClient = new AvalaraClient(config)
   
   def calculateTax(request: TaxRequest): Future[TaxResponse] = {
     if (config.enabled) {
-      // TODO: Real Avalara integration when sandbox is available
-      logger.info("Real Avalara integration not yet implemented")
-      calculateMockTax(request)
+      logger.info("Using real Avalara tax calculation")
+      avalaraClient.calculateTax(request)
     } else {
-      logger.debug(s"Calculating mock tax for ${request.customerAddress.country}")
+      logger.debug(s"Using mock tax calculation for ${request.customerAddress.country}")
       calculateMockTax(request)
     }
   }

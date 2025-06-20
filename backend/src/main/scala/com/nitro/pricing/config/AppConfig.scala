@@ -24,8 +24,9 @@ case class StripeConfig(
 
 case class AvalaraConfig(
   enabled: Boolean,
-  baseUrl: Option[String],
-  apiKey: Option[String],
+  baseUrl: String,
+  accountId: String,
+  licenseKey: String,
   timeout: FiniteDuration
 )
 
@@ -35,7 +36,6 @@ case class CacheConfig(
 )
 
 case class FeatureFlags(
-  useRealAvalara: Boolean,
   enableWebhooks: Boolean,
   enable3YearCheckout: Boolean
 )
@@ -83,9 +83,10 @@ object AppConfig {
         timeout = config.getDuration("stripe.timeout").toScala
       ),
       avalara = AvalaraConfig(
-        enabled = config.getBoolean("avalara.enabled"),
-        baseUrl = if (config.hasPath("avalara.base-url")) Some(config.getString("avalara.base-url")) else None,
-        apiKey = if (config.hasPath("avalara.api-key")) Some(config.getString("avalara.api-key")) else None,
+        enabled = if (config.hasPath("avalara.enabled")) config.getBoolean("avalara.enabled") else false,
+        baseUrl = getStringWithFallback("avalara.base-url", ""),
+        accountId = getStringWithFallback("avalara.account-id", ""),
+        licenseKey = getStringWithFallback("avalara.license-key", ""),
         timeout = config.getDuration("avalara.timeout").toScala
       ),
       cache = CacheConfig(
@@ -93,7 +94,6 @@ object AppConfig {
         maxEntries = config.getInt("cache.pricing.max-entries")
       ),
       features = FeatureFlags(
-        useRealAvalara = config.getBoolean("features.use-real-avalara"),
         enableWebhooks = config.getBoolean("features.enable-webhooks"),
         enable3YearCheckout = config.getBoolean("features.enable-3year-checkout")
       )
