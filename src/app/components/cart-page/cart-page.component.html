@@ -171,7 +171,7 @@
             </div>
             <div *ngIf="item.apiCalls">{{ item.apiCalls }} API calls/month</div>
           </div>
-          <div class="amount">{{ item.price | currency }}/year</div>
+          <div class="amount">{{ formatPrice(item.price) }}/year</div>
         </div>
       </div>
     </div>
@@ -179,10 +179,10 @@
     <div class="grand-total">
       <div class="annual-cost">
         <span>Total Annual Cost</span>
-        <span class="total-amount">{{ totalPrice | currency }}/year</span>
+        <span class="total-amount">{{ formatPrice(totalPrice) }}/year</span>
       </div>
       <div class="monthly-breakdown">
-        ({{ totalPrice / 12 | currency }}/month, billed annually)
+        ({{ formatPrice(totalPrice / 12) }}/month, billed annually)
       </div>
     </div>
     

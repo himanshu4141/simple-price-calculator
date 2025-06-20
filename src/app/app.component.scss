@@ -21,6 +21,23 @@
     align-items: center;
     gap: var(--nitro-spacing-md);
     
+    .brand-link {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+      
+      &:hover {
+        opacity: 0.8;
+      }
+      
+      &:focus {
+        outline: 2px solid var(--nitro-primary);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+    }
+    
     .nav-logo {
       height: 32px;
       width: auto;
@@ -38,6 +55,8 @@
     display: flex;
     gap: var(--nitro-spacing-xl);
     list-style: none;
+    flex: 1;
+    justify-content: center;
 
     a {
       text-decoration: none;
@@ -59,9 +78,51 @@
       }
     }
   }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--nitro-spacing-md);
+  }
 }
 
 main {
   flex: 1;
   padding: 0 var(--nitro-spacing-xl) var(--nitro-spacing-xl);
+}
+
+/* Responsive navigation */
+@media (max-width: 768px) {
+  .main-nav {
+    padding: var(--nitro-spacing-sm) var(--nitro-spacing-md);
+    flex-wrap: wrap;
+    gap: var(--nitro-spacing-sm);
+
+    .nav-brand {
+      .nav-title {
+        font-size: 1.1rem;
+      }
+    }
+
+    .nav-links {
+      order: 3;
+      width: 100%;
+      justify-content: flex-start;
+      margin-top: var(--nitro-spacing-sm);
+      gap: var(--nitro-spacing-md);
+
+      a {
+        padding: var(--nitro-spacing-xs) var(--nitro-spacing-sm);
+        font-size: 0.9rem;
+      }
+    }
+
+    .nav-actions {
+      order: 2;
+    }
+  }
+
+  main {
+    padding: 0 var(--nitro-spacing-md) var(--nitro-spacing-md);
+  }
 }

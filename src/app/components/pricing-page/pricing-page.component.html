@@ -8,14 +8,14 @@
         <div class="commitment-toggle">
           <button 
             [class.active]="selectedTerm === '1year'" 
-            (click)="selectedTerm = '1year'"
+            (click)="onTermChange('1year')"
             class="commitment-btn">
             <span class="term">1 Year</span>
             <span class="savings">Standard Rate</span>
           </button>
           <button 
             [class.active]="selectedTerm === '3year'" 
-            (click)="selectedTerm = '3year'"
+            (click)="onTermChange('3year')"
             class="commitment-btn">
             <span class="term">3 Years</span>
             <span class="savings">Save up to 20%</span>
@@ -25,8 +25,28 @@
     </div>
   </div>
 
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="loading-section">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p>Loading pricing data...</p>
+    </div>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="loadingError" class="error-section">
+    <div class="error-content">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Unable to load pricing</h3>
+      <p>{{ loadingError }}</p>
+      <button mat-raised-button color="primary" (click)="retryLoading()">
+        Try Again
+      </button>
+    </div>
+  </div>
+
   <!-- Product families with improved structure -->
-  <div class="products-section">
+  <div *ngIf="!isLoading && !loadingError" class="products-section">
     <div *ngFor="let family of productFamilies" class="product-family">
       <div class="family-header">
         <h2 class="nitro-heading">{{ family.name }}</h2>
@@ -45,8 +65,7 @@
 
           <div class="plan-pricing">
             <div class="price-display">
-              <span class="currency">$</span>
-              <span class="amount">{{ getPlanPrice(plan) }}</span>
+              <span class="amount">{{ formatPrice(getStartingPrice(plan)) }}</span>
               <div class="price-details">
                 <span class="period">per seat / year</span>
                 <span *ngIf="selectedTerm === '3year'" class="contract-badge">3-year commitment</span>
@@ -95,11 +114,11 @@
                 <h4>Additional usage:</h4>
                 <p *ngIf="plan.packagePrice" class="cost-item">
                   <mat-icon>add_circle_outline</mat-icon>
-                  <span>Extra signature packages: ${{ plan.packagePrice }} each</span>
+                  <span>Extra signature packages: {{ formatPrice(plan.packagePrice!) }} each</span>
                 </p>
                 <p *ngIf="plan.apiPrice" class="cost-item">
                   <mat-icon>api</mat-icon>
-                  <span>API integrations: ${{ plan.apiPrice }} per call</span>
+                  <span>API integrations: {{ formatPrice(plan.apiPrice!) }} per call</span>
                   <button 
                     mat-icon-button 
                     class="info-btn"

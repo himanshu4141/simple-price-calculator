@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, switchMap } from 'rxjs/operators';
 
 import {
   PricingService,
@@ -11,6 +11,7 @@ import {
   EstimateItemRequest,
   BillingTerm
 } from '../../services/pricing.service';
+import { LocalizationService } from '../../services/localization.service';
 import { StripeService } from '../../services/stripe.service';
 import { PackageCalculations } from '../../utils/package-calculations.util';
 import { environment } from '../../../environments/environment';
@@ -162,6 +163,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly router: Router,
     private readonly formBuilder: FormBuilder,
     private readonly pricingService: PricingService,
+    private readonly localizationService: LocalizationService,
     private readonly stripeService: StripeService,
     private readonly httpClient: HttpClient,
     private readonly ngZone: NgZone
@@ -338,7 +340,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const estimateRequest: EstimateRequest = {
       items: estimateItems,
-      currency: 'USD',
+      currency: this.localizationService.currentCurrency,
       billingTerm: this.term
     };
 
@@ -392,7 +394,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         zip: formValue.zip,
         country: formValue.country
       },
-      currency: 'USD'
+      currency: this.localizationService.currentCurrency
     };
 
     console.log('💰 Calculating tax:', taxRequest);
@@ -605,7 +607,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         country: formValue.country
       },
       items: checkoutItems,
-      currency: 'USD',
+      currency: this.localizationService.currentCurrency,
       billingTerm: this.term,
       paymentMethodId: paymentMethod.id
     };
@@ -714,7 +716,7 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         country: formValue.country
       },
       items: checkoutItems,
-      currency: 'USD',
+      currency: this.localizationService.currentCurrency,
       billingTerm: this.term
     };
 
@@ -854,5 +856,13 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
     console.log('✅ Card element ready check passed');
     return true;
+  }
+
+  formatPrice(price: number): string {
+    return this.localizationService.formatCurrency(price);
+  }
+
+  getCurrentCurrency(): string {
+    return this.localizationService.currentCurrency;
   }
 }

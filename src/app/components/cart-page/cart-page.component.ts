@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, switchMap } from 'rxjs/operators';
 
 import {
   PricingService,
@@ -13,6 +13,7 @@ import {
   BillingTerm,
   PricingApiResponse
 } from '../../services/pricing.service';
+import { LocalizationService } from '../../services/localization.service';
 import { PackageCalculations, DEFAULT_FREE_PACKAGES_PER_SEAT } from '../../utils/package-calculations.util';
 
 interface CartState {
@@ -54,7 +55,8 @@ export class CartPageComponent implements OnInit, OnDestroy {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
-    private readonly pricingService: PricingService
+    private readonly pricingService: PricingService,
+    private readonly localizationService: LocalizationService
   ) {}
 
   ngOnInit(): void {
@@ -67,8 +69,15 @@ export class CartPageComponent implements OnInit, OnDestroy {
   }
 
   private loadPricingDataAndInitializeCart(): void {
-    this.pricingService.fetchPricingData('USD')
-      .pipe(takeUntil(this.destroy$))
+    // Listen to currency changes and reload pricing data
+    this.localizationService.localization$
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(state => {
+          console.log('🛒 Currency changed, reloading cart pricing data for:', state.currency.code);
+          return this.pricingService.fetchPricingData(state.currency.code);
+        })
+      )
       .subscribe({
         next: (response: PricingApiResponse) => {
           if (response?.productFamilies && Array.isArray(response.productFamilies)) {
@@ -276,5 +285,13 @@ export class CartPageComponent implements OnInit, OnDestroy {
 
   getExtraPackages(): number {
     return PackageCalculations.calculateExtraPackages(this.signSeats, this.signPackages);
+  }
+
+  formatPrice(price: number): string {
+    return this.localizationService.formatCurrency(price);
+  }
+
+  getCurrentCurrency(): string {
+    return this.localizationService.currentCurrency;
   }
 }

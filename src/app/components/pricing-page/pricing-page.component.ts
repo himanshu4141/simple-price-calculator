@@ -1,169 +1,269 @@
-// Angular core and common modules
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil, switchMap } from 'rxjs/operators';
 
-// RxJS modules
-import { catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
-
-// Core application imports
-import { PricingService, ProductFamily, BillingTerm, BILLING_TERMS } from '../../services/pricing.service';
+import {
+  PricingService,
+  ProductFamily,
+  Plan,
+  BillingTerm,
+  PricingApiResponse
+} from '../../services/pricing.service';
+import { LocalizationService } from '../../services/localization.service';
 
 @Component({
   selector: 'app-pricing-page',
   templateUrl: './pricing-page.component.html',
   styleUrls: ['./pricing-page.component.scss']
 })
-export class PricingPageComponent implements OnInit {
-  // Service injection using traditional constructor injection
+export class PricingPageComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
+  
+  productFamilies: ProductFamily[] = [];
+  selectedTerm: BillingTerm = '1year';
+  isLoading = true;
+  loadingError: string | null = null;
+
   constructor(
     private readonly pricingService: PricingService,
+    private readonly localizationService: LocalizationService,
     private readonly router: Router
   ) {}
 
-  // Component state properties
-  public productFamilies: readonly ProductFamily[] = [];
-  public selectedTerm: BillingTerm = BILLING_TERMS.ONE_YEAR;
-  public isLoadingPricingData: boolean = false;
-  public errorMessage: string | null = null;
-
-  // Computed property using getter
-  public get isThreeYearSelected(): boolean {
-    return this.selectedTerm === BILLING_TERMS.THREE_YEAR;
-  }
-
-  // Constants for template
-  public readonly BILLING_TERMS = BILLING_TERMS;
-
   ngOnInit(): void {
-    this.fetchPricingData();
+    this.loadPricingData();
   }
 
-  private fetchPricingData(): void {
-    this.isLoadingPricingData = true;
-    this.errorMessage = null;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
-    this.pricingService.fetchPricingData('USD')
+  private loadPricingData(): void {
+    this.isLoading = true;
+    this.loadingError = null;
+
+    // Listen to currency changes and reload pricing data
+    this.localizationService.localization$
       .pipe(
-        catchError(error => {
-          console.error('Error fetching pricing data:', error);
-          this.errorMessage = 'Failed to load pricing data. Please try again.';
-          return of(null);
+        takeUntil(this.destroy$),
+        switchMap(state => {
+          console.log('💰 Currency changed, reloading pricing data for:', state.currency.code);
+          return this.pricingService.fetchPricingData(state.currency.code);
         })
       )
-      .subscribe(response => {
-        this.isLoadingPricingData = false;
-        
-        if (response?.productFamilies) {
-          this.productFamilies = Object.freeze([...response.productFamilies]);
-        } else {
+      .subscribe({
+        next: (response: PricingApiResponse) => {
+          this.productFamilies = response.productFamilies || [];
+          this.isLoading = false;
+          console.log('✅ Pricing data loaded:', {
+            families: this.productFamilies.length,
+            currency: this.getCurrentCurrency()
+          });
+        },
+        error: (error) => {
+          console.error('❌ Error loading pricing data:', error);
+          this.loadingError = 'Failed to load pricing data. Please try again.';
+          this.isLoading = false;
           this.productFamilies = [];
-          if (!this.errorMessage) {
-            this.errorMessage = 'No pricing data available.';
-          }
         }
       });
   }
 
-  public selectPlan(productFamily: ProductFamily, planName: string): void {
-    const navigationParams = Object.freeze({
-      product: productFamily.name,
-      plan: planName,
-      term: this.selectedTerm
-    });
-
-    this.router.navigate(['/cart'], { queryParams: navigationParams });
-  }
-
-  public toggleTerm(): void {
-    const newTerm = this.selectedTerm === BILLING_TERMS.ONE_YEAR 
-      ? BILLING_TERMS.THREE_YEAR 
-      : BILLING_TERMS.ONE_YEAR;
-    
-    this.selectedTerm = newTerm;
-  }
-
-  getPlanPrice(plan: any, seats: number = 1): number {
+  /**
+   * Calculate the best tier price for a given seat count
+   */
+  getTierPrice(plan: Plan, seats: number): number {
     const pricing = this.selectedTerm === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
-    const applicableTier = [...pricing]
-      .sort((a, b) => b.minSeats - a.minSeats)
+    
+    // Find the applicable tier (highest minSeats that doesn't exceed seat count)
+    const applicableTier = pricing
+      .slice()
+      .reverse()
       .find(tier => seats >= tier.minSeats);
-    return applicableTier ? applicableTier.price : 0;
+    
+    return applicableTier?.price || 0;
   }
 
-  // Team size suggestions based on plan names
-  getTeamSuggestion(planName: string): string {
-    const suggestions: { [key: string]: string } = {
-      'Essential': 'Ideal for small teams (1-5 users)',
-      'Pro': 'Perfect for growing teams (5-25 users)', 
-      'Business': 'Best for larger teams (25+ users)',
-      'Enterprise': 'Designed for large organizations (100+ users)',
-      'Starter': 'Great for individuals and small teams (1-10 users)',
-      'Professional': 'Perfect for mid-size teams (10-50 users)',
-      'Premium': 'Best for large teams (50+ users)'
-    };
-    return suggestions[planName] || '';
+  /**
+   * Get the starting price for a plan (usually for 1 seat)
+   */
+  getStartingPrice(plan: Plan): number {
+    return this.getTierPrice(plan, 1);
   }
 
-  // Convert technical terminology to user-friendly language
-  getFeatureDisplayText(feature: string): string {
-    const featureMap: { [key: string]: string } = {
-      'OCR technology': 'Text Recognition & Editing',
-      'Advanced OCR': 'Advanced Text Recognition & Editing', 
-      'API access': 'System Integration & API Access',
-      'SSO integration': 'Single Sign-On (SSO) Integration',
-      'Advanced analytics': 'Detailed Usage Analytics & Reporting'
-    };
-    return featureMap[feature] || feature;
+  /**
+   * Get the price at a specific tier (commonly used for 10 or 50 seats)
+   */
+  getPriceAtTier(plan: Plan, seats: number): number {
+    return this.getTierPrice(plan, seats);
   }
 
-  // Check if a feature is technical and needs a tooltip
-  isFeatureTechnical(feature: string): boolean {
-    const technicalFeatures = ['OCR technology', 'Advanced OCR', 'API access', 'SSO integration'];
-    return technicalFeatures.includes(feature);
+  /**
+   * Check if a plan has volume discounts
+   */
+  hasVolumeDiscount(plan: Plan): boolean {
+    const pricing = this.selectedTerm === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
+    return pricing.length > 1;
   }
 
-  // Get tooltip text for technical features
-  getFeatureTooltip(feature: string): string {
-    const tooltips: { [key: string]: string } = {
-      'OCR technology': 'Optical Character Recognition technology that converts scanned documents and images into editable text',
-      'Advanced OCR': 'Enhanced text recognition with better accuracy for complex documents and handwriting',
-      'API access': 'Application Programming Interface that allows integration with your existing business systems',
-      'SSO integration': 'Single Sign-On allows users to access Nitro with their existing company credentials'
-    };
-    return tooltips[feature] || '';
+  /**
+   * Get the maximum tier seats for display
+   */
+  getMaxTierSeats(plan: Plan): number {
+    const pricing = this.selectedTerm === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
+    return Math.max(...pricing.map(tier => tier.minSeats));
   }
 
-  // Configure plan with options before adding to cart
-  configurePlan(productFamily: ProductFamily, planName: string): void {
-    this.router.navigate(['/calculator'], {
-      queryParams: {
-        product: productFamily.name,
-        plan: planName,
-        term: this.selectedTerm,
-        mode: 'configure'
-      }
-    });
-  }
-
-  // Quick add plan to cart with default settings
-  quickAddPlan(productFamily: ProductFamily, planName: string): void {
+  /**
+   * Quick add to cart navigation - updated to match template call
+   */
+  quickAddToCart(productFamily: string, planName: string): void {
     this.router.navigate(['/cart'], {
       queryParams: {
-        product: productFamily.name,
+        product: productFamily,
         plan: planName,
         term: this.selectedTerm,
         seats: 1,
-        quickAdd: true
+        quickAdd: 'true'
       }
     });
   }
 
-  // Navigate to calculator for cost estimation help
+  /**
+   * Navigate to full calculator
+   */
+  openCalculator(): void {
+    this.router.navigate(['/calculator']);
+  }
+
+  /**
+   * Navigate to calculator (alias for compatibility)
+   */
   goToCalculator(): void {
+    this.openCalculator();
+  }
+
+  /**
+   * Change billing term and recalculate
+   */
+  onTermChange(term: BillingTerm): void {
+    this.selectedTerm = term;
+    console.log('📅 Term changed to:', term);
+  }
+
+  /**
+   * Format price using localization service
+   */
+  formatPrice(price: number): string {
+    return this.localizationService.formatCurrency(price);
+  }
+
+  /**
+   * Get current currency code
+   */
+  getCurrentCurrency(): string {
+    return this.localizationService.currentCurrency;
+  }
+
+  /**
+   * Get current currency info for display
+   */
+  getCurrentCurrencyInfo() {
+    return this.localizationService.currentCurrencyInfo;
+  }
+
+  /**
+   * Calculate savings between terms
+   */
+  calculateSavings(plan: Plan, seats: number = 1): number {
+    if (plan.oneYearPricing.length === 0 || plan.threeYearPricing.length === 0) {
+      return 0;
+    }
+
+    const oneYearPrice = this.getTierPrice(plan, seats) * 3; // 3 years at 1-year pricing
+    const threeYearPrice = this.getTierPrice({...plan, oneYearPricing: plan.threeYearPricing, threeYearPricing: plan.oneYearPricing}, seats) * 3;
+    
+    return Math.max(0, oneYearPrice - threeYearPrice);
+  }
+
+  /**
+   * Calculate savings percentage
+   */
+  calculateSavingsPercentage(plan: Plan, seats: number = 1): number {
+    const savings = this.calculateSavings(plan, seats);
+    const oneYearTotal = this.getTierPrice(plan, seats) * 3;
+    
+    if (oneYearTotal === 0) return 0;
+    return Math.round((savings / oneYearTotal) * 100);
+  }
+
+  /**
+   * Retry loading pricing data
+   */
+  retryLoading(): void {
+    this.loadPricingData();
+  }
+
+  /**
+   * Get display text for features
+   */
+  getFeatureDisplayText(feature: string): string {
+    return feature;
+  }
+
+  /**
+   * Get tooltip for features
+   */
+  getFeatureTooltip(feature: string): string {
+    // Add feature-specific tooltips as needed
+    const tooltips: Record<string, string> = {
+      'OCR technology': 'Optical Character Recognition - convert scanned documents to editable text',
+      'API integrations': 'Connect Nitro Sign with your existing business applications',
+      'Advanced workflows': 'Create complex signing processes with multiple signers and approval steps'
+    };
+    return tooltips[feature] || feature;
+  }
+
+  /**
+   * Check if feature is technical and needs tooltip
+   */
+  isFeatureTechnical(feature: string): boolean {
+    const technicalFeatures = ['OCR technology', 'API integrations', 'Advanced workflows'];
+    return technicalFeatures.includes(feature);
+  }
+
+  /**
+   * Get team suggestion text for a plan
+   */
+  getTeamSuggestion(planName: string): string | null {
+    const suggestions: Record<string, string> = {
+      'Nitro PDF Standard': 'Perfect for small teams',
+      'Nitro PDF Plus': 'Ideal for growing businesses',
+      'Nitro Sign Standard': 'Great for small teams',
+      'Nitro Sign Plus': 'Perfect for medium teams',
+      'Nitro Sign Enterprise': 'Built for large organizations'
+    };
+    return suggestions[planName] || null;
+  }
+
+  /**
+   * Quick add plan to cart
+   */
+  quickAddPlan(family: ProductFamily, planName: string): void {
+    this.quickAddToCart(family.name, planName);
+  }
+
+  /**
+   * Configure plan - update method signature to match template
+   */
+  configurePlan(family: ProductFamily, planName: string): void {
     this.router.navigate(['/calculator'], {
       queryParams: {
-        source: 'pricing',
+        mode: 'configure',
+        product: family.name,
+        plan: planName,
         term: this.selectedTerm
       }
     });

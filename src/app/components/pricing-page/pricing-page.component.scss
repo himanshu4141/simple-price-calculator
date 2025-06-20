@@ -442,6 +442,59 @@
   }
 }
 
+/* Loading and Error States */
+.loading-section, .error-section {
+  text-align: center;
+  padding: var(--nitro-spacing-3xl);
+  background: white;
+  border-radius: 16px;
+  margin: var(--nitro-spacing-xl) 0;
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+}
+
+.loading-content {
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--nitro-mist);
+    border-top: 4px solid var(--nitro-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--nitro-spacing-lg);
+  }
+  
+  p {
+    color: var(--nitro-eclipse);
+    font-size: 1.1rem;
+  }
+}
+
+.error-content {
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--nitro-coral);
+    margin-bottom: var(--nitro-spacing-md);
+  }
+  
+  h3 {
+    color: var(--nitro-black);
+    font-size: 1.5rem;
+    margin-bottom: var(--nitro-spacing-sm);
+  }
+  
+  p {
+    color: var(--nitro-eclipse);
+    margin-bottom: var(--nitro-spacing-lg);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Responsive design improvements */
 @media (max-width: 768px) {
   .pricing-page {
@@ -483,5 +536,18 @@
         font-size: 0.9rem;
       }
     }
+  }
+}
+
+/* Ensure currency selector works properly on this page */
+::ng-deep app-currency-selector {
+  .currency-dropdown {
+    z-index: 9999 !important;
+    position: absolute !important;
+  }
+  
+  .dropdown-overlay {
+    z-index: 9998 !important;
+    position: fixed !important;
   }
 }

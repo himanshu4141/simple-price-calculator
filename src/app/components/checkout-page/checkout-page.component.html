@@ -62,15 +62,15 @@
       <div class="pricing-breakdown">
         <div class="price-line">
           <span>Subtotal:</span>
-          <span class="amount">${{ estimateTotal.toFixed(2) }}</span>
+          <span class="amount">{{ formatPrice(estimateTotal) }}</span>
         </div>
         <div class="price-line" *ngIf="taxAmount > 0">
           <span>Tax:</span>
-          <span class="amount">${{ taxAmount.toFixed(2) }}</span>
+          <span class="amount">{{ formatPrice(taxAmount) }}</span>
         </div>
         <div class="price-line total">
           <span>Total:</span>
-          <span class="amount">${{ finalTotal.toFixed(2) }}</span>
+          <span class="amount">{{ formatPrice(finalTotal) }}</span>
         </div>
       </div>
     </div>

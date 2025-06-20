@@ -3,6 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
 import { RouterModule, Routes } from '@angular/router';
+import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -20,6 +21,7 @@ import { PricingPageComponent } from './components/pricing-page/pricing-page.com
 import { CartPageComponent } from './components/cart-page/cart-page.component';
 import { PriceCalculatorComponent } from './components/price-calculator/price-calculator.component';
 import { CheckoutPageComponent } from './components/checkout-page/checkout-page.component';
+import { CurrencySelectorComponent } from './components/currency-selector.component';
 
 const routes: Routes = [
   { path: '', component: PricingPageComponent },
@@ -34,10 +36,12 @@ const routes: Routes = [
     PricingPageComponent,
     CartPageComponent,
     PriceCalculatorComponent,
-    CheckoutPageComponent
+    CheckoutPageComponent,
+    CurrencySelectorComponent
   ],
   imports: [
     BrowserModule,
+    CommonModule,
     BrowserAnimationsModule,
     HttpClientModule,
     RouterModule.forRoot(routes),

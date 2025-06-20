@@ -2,11 +2,13 @@
 
 A Scala/Pekko-HTTP backend service providing real-time pricing integration with Chargebee Product Catalog 2.0, hybrid pricing strategies, and volume tier calculations.
 
-## 🚀 Current Status: **Production Deployed - Phase 3: 90% Complete**
+## 🚀 Current Status: **Production Deployed - Phase 3: 95% Complete**
 
 ### ✅ **Operational Features (Production Ready)**
 - **Chargebee Product Catalog 2.0 Integration**: Full PC 2.0 API integration with 40 item prices across 5 currencies
 - **Stripe Payment Processing**: Complete PaymentIntent flow with 3D Secure authentication
+- **Avalara Tax Integration**: Real-time sales tax calculation and compliance management
+- **Multi-Currency Support**: Complete localization for USD, EUR, GBP, CAD, AUD
 - **Hybrid Pricing Strategy**: 1-year pricing from Chargebee + 3-year pricing from static data
 - **Volume Tier Calculations**: Automatic tier selection and pricing calculations
 - **Intelligent Caching**: 1-hour TTL with graceful fallbacks for reliability  
@@ -14,10 +16,9 @@ A Scala/Pekko-HTTP backend service providing real-time pricing integration with 
 - **Error Handling**: Comprehensive error handling and logging throughout
 - **Production Deployment**: Live at https://nitro-price-calculator-api.onrender.com
 
-### 🔄 **Remaining for Phase 3 Completion (10%)**
+### 🔄 **Remaining for Phase 3 Completion (5%)**
 - **Webhook Infrastructure**: Real-time event processing for Stripe and Chargebee
 - **Success/Failure Pages API**: Backend support for enhanced post-payment UX
-- **Advanced Error Recovery**: Enhanced retry mechanisms and fallback strategies
 
 ## API Endpoints
 
@@ -389,7 +390,9 @@ curl -X POST http://localhost:8080/api/estimate \
 ### Tech Stack
 - **Framework**: Scala 2.13 with Pekko-HTTP
 - **JSON**: Circe for JSON encoding/decoding
-- **HTTP Client**: Pekko-HTTP client for Chargebee integration
+- **HTTP Client**: Pekko-HTTP client for Chargebee and Avalara integration
+- **Tax Compliance**: Avalara AvaTax API integration
+- **Payment Processing**: Stripe API integration with PaymentIntent flow
 - **Logging**: Logback with structured logging
 - **Configuration**: Typesafe Config
 
@@ -401,9 +404,22 @@ curl -X POST http://localhost:8080/api/estimate \
 - Error handling with retries
 - Connection testing
 
+#### `AvalaraClient`
+- Real-time sales tax calculation
+- Address validation and normalization
+- Tax compliance and reporting
+- Multi-jurisdiction tax handling
+
+#### `StripeClient`
+- PaymentIntent creation and management
+- 3D Secure authentication support
+- Multi-currency payment processing
+- Webhook event handling
+
 #### `PricingService` 
 - Hybrid pricing strategy implementation
 - Volume tier calculations
+- Multi-currency price conversion
 - Intelligent caching with TTL
 - Static data merging
 

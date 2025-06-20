@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, combineLatest } from 'rxjs';
+import { takeUntil, switchMap } from 'rxjs/operators';
 
 import {
   PricingService,
@@ -11,6 +11,7 @@ import {
   BillingTerm,
   PricingApiResponse
 } from '../../services/pricing.service';
+import { LocalizationService } from '../../services/localization.service';
 
 interface PriceBreakdown {
   readonly basePrice: number;
@@ -57,6 +58,7 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly pricingService: PricingService,
+    private readonly localizationService: LocalizationService,
     private readonly route: ActivatedRoute,
     private readonly router: Router
   ) {}
@@ -96,8 +98,15 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
   }
 
   private loadPricingData(): void {
-    this.pricingService.fetchPricingData('USD')
-      .pipe(takeUntil(this.destroy$))
+    // Listen to currency changes and reload pricing data
+    this.localizationService.localization$
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(state => {
+          console.log('💰 Currency changed, reloading pricing data for:', state.currency.code);
+          return this.pricingService.fetchPricingData(state.currency.code);
+        })
+      )
       .subscribe({
         next: (response: PricingApiResponse) => {
           this.productFamilies = response.productFamilies;
@@ -243,6 +252,14 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
       return `${(value / 1000).toFixed(1)}k`;
     }
     return value.toString();
+  }
+
+  formatPrice(price: number): string {
+    return this.localizationService.formatCurrency(price);
+  }
+
+  getCurrentCurrency(): string {
+    return this.localizationService.currentCurrency;
   }
 
   getVolumeTier(familyName: string): number {
