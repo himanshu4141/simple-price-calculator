@@ -361,6 +361,66 @@ case class ChargebeeLineItemTax(
   taxable_amount: Long
 )
 
+// Avalara AvaTax API Models
+case class AvalaraAddress(
+  line1: String,
+  city: String,
+  region: String,
+  postalCode: String,
+  country: String
+)
+
+case class AvalaraLineItem(
+  number: String,
+  description: String,
+  amount: BigDecimal,
+  taxIncluded: Boolean = false,
+  taxCode: String = "SW054000", // Software as a Service tax code
+  itemCode: String,
+  quantity: Int = 1
+)
+
+case class AvalaraCreateTransactionRequest(
+  `type`: String = "SalesInvoice",
+  code: String,
+  date: String,
+  currencyCode: String,
+  customerCode: String = "NITRO-CUSTOMER",
+  addresses: Map[String, AvalaraAddress],
+  lines: List[AvalaraLineItem]
+)
+
+case class AvalaraTaxDetail(
+  taxName: String,
+  rate: BigDecimal,
+  tax: BigDecimal,
+  taxAuthorityTypeId: Option[Int] = None,
+  jurisName: String
+)
+
+case class AvalaraLineResponse(
+  lineNumber: String,
+  description: String,
+  lineAmount: BigDecimal,
+  tax: BigDecimal,
+  details: List[AvalaraTaxDetail] = List.empty
+)
+
+case class AvalaraSummaryItem(
+  taxName: String,
+  rate: BigDecimal,
+  tax: BigDecimal,
+  jurisName: String
+)
+
+case class AvalaraTransactionResponse(
+  code: String,
+  totalAmount: BigDecimal,
+  totalTax: BigDecimal,
+  lines: List[AvalaraLineResponse],
+  summary: List[AvalaraSummaryItem] = List.empty
+)
+
 // JSON codecs
 object JsonCodecs {
   
@@ -491,4 +551,26 @@ object JsonCodecs {
   
   implicit val chargebeeEstimateEncoder: Encoder[ChargebeeEstimate] = deriveEncoder[ChargebeeEstimate]
   implicit val chargebeeEstimateDecoder: Decoder[ChargebeeEstimate] = deriveDecoder[ChargebeeEstimate]
+  
+  // Avalara models
+  implicit val avalaraAddressEncoder: Encoder[AvalaraAddress] = deriveEncoder[AvalaraAddress]
+  implicit val avalaraAddressDecoder: Decoder[AvalaraAddress] = deriveDecoder[AvalaraAddress]
+  
+  implicit val avalaraLineItemEncoder: Encoder[AvalaraLineItem] = deriveEncoder[AvalaraLineItem]
+  implicit val avalaraLineItemDecoder: Decoder[AvalaraLineItem] = deriveDecoder[AvalaraLineItem]
+  
+  implicit val avalaraCreateTransactionRequestEncoder: Encoder[AvalaraCreateTransactionRequest] = deriveEncoder[AvalaraCreateTransactionRequest]
+  implicit val avalaraCreateTransactionRequestDecoder: Decoder[AvalaraCreateTransactionRequest] = deriveDecoder[AvalaraCreateTransactionRequest]
+  
+  implicit val avalaraTaxDetailEncoder: Encoder[AvalaraTaxDetail] = deriveEncoder[AvalaraTaxDetail]
+  implicit val avalaraTaxDetailDecoder: Decoder[AvalaraTaxDetail] = deriveDecoder[AvalaraTaxDetail]
+  
+  implicit val avalaraLineResponseEncoder: Encoder[AvalaraLineResponse] = deriveEncoder[AvalaraLineResponse]
+  implicit val avalaraLineResponseDecoder: Decoder[AvalaraLineResponse] = deriveDecoder[AvalaraLineResponse]
+  
+  implicit val avalaraSummaryItemEncoder: Encoder[AvalaraSummaryItem] = deriveEncoder[AvalaraSummaryItem]
+  implicit val avalaraSummaryItemDecoder: Decoder[AvalaraSummaryItem] = deriveDecoder[AvalaraSummaryItem]
+  
+  implicit val avalaraTransactionResponseEncoder: Encoder[AvalaraTransactionResponse] = deriveEncoder[AvalaraTransactionResponse]
+  implicit val avalaraTransactionResponseDecoder: Decoder[AvalaraTransactionResponse] = deriveDecoder[AvalaraTransactionResponse]
 }

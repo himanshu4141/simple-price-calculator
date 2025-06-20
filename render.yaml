@@ -38,13 +38,17 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false  # This is a secret, set in Render dashboard
       
-      # Avalara Configuration (Mock by default)
+      # Avalara Configuration (Production ready)
       - key: AVALARA_ENABLED
-        value: false
+        value: false  # Set to true when license key is configured
+      - key: AVALARA_BASE_URL
+        value: https://sandbox-rest.avatax.com  # Change to https://rest.avatax.com for production
+      - key: AVALARA_ACCOUNT_ID
+        sync: false  # This is a secret, set in Render dashboard
+      - key: AVALARA_LICENSE_KEY
+        sync: false  # This is a secret, set in Render dashboard
       
       # Feature Flags
-      - key: FEATURES_USE_REAL_AVALARA
-        value: false
       - key: FEATURES_ENABLE_WEBHOOKS
         value: true
       - key: FEATURES_ENABLE_3YEAR_CHECKOUT
