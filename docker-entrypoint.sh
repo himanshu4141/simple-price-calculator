@@ -28,8 +28,5 @@ echo "Starting nginx with backend: ${BACKEND_URL}"
 envsubst '${BACKEND_URL} ${BACKEND_HOST}' < /etc/nginx/nginx.conf > /tmp/nginx.conf && \
 mv /tmp/nginx.conf /etc/nginx/nginx.conf
 
-# Ensure proper permissions
-chown nginx:nginx /etc/nginx/nginx.conf
-
-# Start nginx as nginx user
-exec su-exec nginx nginx -g "daemon off;"
+# Start nginx (running as root in container is fine)
+exec nginx -g "daemon off;"
