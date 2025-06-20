@@ -42,26 +42,6 @@
             { "minSeats": 10, "price": 159 },
             { "minSeats": 50, "price": 149 }
           ]
-        },
-        {
-          "name": "Nitro PDF Enterprise",
-          "description": "Enterprise-grade PDF solutions",
-          "features": [
-            "All Plus features",
-            "Enterprise security",
-            "Advanced deployment",
-            "Priority support"
-          ],
-          "oneYearPricing": [
-            { "minSeats": 1, "price": 229 },
-            { "minSeats": 10, "price": 219 },
-            { "minSeats": 50, "price": 209 }
-          ],
-          "threeYearPricing": [
-            { "minSeats": 1, "price": 219 },
-            { "minSeats": 10, "price": 209 },
-            { "minSeats": 50, "price": 199 }
-          ]
         }
       ]
     },
