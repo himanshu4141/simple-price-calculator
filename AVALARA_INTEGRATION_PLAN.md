@@ -15,7 +15,7 @@ Integrate Avalara AvaTax with Nitro Price Calculator for accurate tax calculatio
 - **Question**: Do you have your sandbox credentials ready? (Account ID, License Key)
 - **Answer**: 
   - ✅ **Account ID**: 2001690981
-  - ✅ **License Key**: 3E888C681217F4BC  
+  - ✅ **License Key**: Redacted  
   - **Status**: Credentials available and verified
 
 ### **2. US Tax Nexus**

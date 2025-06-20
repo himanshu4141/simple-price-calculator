@@ -114,7 +114,7 @@ The Avalara AvaTax integration has been successfully implemented and tested with
 ### 2. **Configuration Management - COMPLETE**
 - **Environment Variables**: Avalara credentials properly configured:
   - `AVALARA_ACCOUNT_ID`: 2001690981 (SNS Securities)
-  - `AVALARA_LICENSE_KEY`: 3E888C681217F4BC (Working)
+  - `AVALARA_LICENSE_KEY`: REDACTED (Working)
   - `AVALARA_BASE_URL`: https://sandbox-rest.avatax.com
   - `AVALARA_ENABLED`: true
 - **Feature Flags**: Removed obsolete `FEATURES_USE_REAL_AVALARA` flag
