@@ -28,27 +28,38 @@ class ApiRoutes(
   private val corsHeaders = List(
     `Access-Control-Allow-Origin`.*,
     `Access-Control-Allow-Methods`(GET, POST, PUT, DELETE, OPTIONS),
-    `Access-Control-Allow-Headers`("Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With")
+    `Access-Control-Allow-Headers`("Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With", "X-API-Key")
   )
 
-  // Custom rejection handler that adds CORS headers to all responses
+  // Enhanced rejection handler that ensures CORS headers are always added
   private val corsRejectionHandler = RejectionHandler.newBuilder()
     .handleAll[Rejection] { rejections =>
+      logger.debug(s"Handling rejections with CORS headers: ${rejections.map(_.getClass.getSimpleName)}")
       respondWithHeaders(corsHeaders) {
-        RejectionHandler.default(rejections).getOrElse(complete(StatusCodes.NotFound))
+        RejectionHandler.default(rejections).getOrElse(complete(StatusCodes.NotFound, "Not Found"))
       }
     }
     .result()
 
+  // Wrap all routes with CORS headers and rejection handling
   private def addCorsHeaders(route: Route): Route = {
-    handleRejections(corsRejectionHandler) {
-      respondWithHeaders(corsHeaders) {
-        route
+    extractRequest { request =>
+      logger.debug(s"Processing request: ${request.method.value} ${request.uri}")
+      handleRejections(corsRejectionHandler) {
+        respondWithHeaders(corsHeaders) {
+          route
+        }
       }
     }
   }
 
   val routes: Route = addCorsHeaders {
+    // Add a root route for basic connectivity testing
+    pathEndOrSingleSlash {
+      get {
+        complete(StatusCodes.OK, "Nitro Price Calculator API is running")
+      }
+    } ~
     pathPrefix("api") {
       concat(
         corsRoute,
@@ -315,13 +326,14 @@ class ApiRoutes(
   private val healthRoutes: Route = {
     path("health") {
       get {
-        logger.debug("Health check request received")
+        logger.info("Health check request received")
         
         val chargebeeHealth = chargebeeClient.testConnection()
         
         onComplete(chargebeeHealth) {
           case Success(isHealthy) =>
             val status = if (isHealthy) StatusCodes.OK else StatusCodes.ServiceUnavailable
+            logger.info(s"Health check completed - Chargebee: ${if (isHealthy) "healthy" else "unhealthy"}")
             
             val healthResponse = HealthResponse(
               status = if (isHealthy) "healthy" else "unhealthy",

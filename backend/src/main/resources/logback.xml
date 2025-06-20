@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Console appender for development -->
+    <!-- Console appender for development and container logs -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -17,12 +17,16 @@
     
     <!-- Pekko loggers -->
     <logger name="org.apache.pekko" level="INFO" />
+    <logger name="org.apache.pekko.http" level="INFO" />
     <logger name="akka" level="INFO" />
     
     <!-- HTTP client loggers -->
-    <logger name="sttp.client3" level="INFO" />
+    <logger name="sttp.client3" level="DEBUG" />
     
-    <!-- Netty loggers - Set io.netty.buffer to INFO level -->
+    <!-- Startup logging -->
+    <logger name="com.nitro.pricing.Main" level="DEBUG" />
+    
+    <!-- Netty loggers -->
     <logger name="io.netty.buffer" level="INFO" />
     <logger name="io.netty" level="WARN" />
     

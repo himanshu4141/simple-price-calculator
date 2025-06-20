@@ -44,7 +44,7 @@ backend/
 *.scala
 
 # Frontend specific (for backend builds)
-src/
-angular.json
-package*.json
-tsconfig*.json
+# Note: These are commented out for frontend builds
+# src/
+# angular.json
+# tsconfig*.json
