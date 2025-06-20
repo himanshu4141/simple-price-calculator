@@ -20,8 +20,15 @@ RUN npm run build -- --configuration=production
 # Stage 2: Serve with nginx
 FROM nginx:alpine
 
+# Install envsubst and su-exec for environment variable substitution and user switching
+RUN apk add --no-cache gettext su-exec
+
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy startup script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist/simple-price-calculator /usr/share/nginx/html
@@ -38,8 +45,8 @@ RUN mkdir -p /tmp /var/cache/nginx /var/log/nginx && \
     chmod -R 755 /var/cache/nginx && \
     chmod -R 755 /var/log/nginx
 
-# Switch to non-root user
-USER nginx
+# Don't switch to non-root user yet (need root for envsubst)
+# USER nginx
 
 # Expose port (Render will set PORT environment variable)
 EXPOSE 80
@@ -48,5 +55,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with environment variable substitution
+CMD ["/docker-entrypoint.sh"]

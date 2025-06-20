@@ -9,9 +9,11 @@ services:
     dockerContext: ./backend
     plan: free
     region: frankfurt
-    branch: cors-deployment-fixes
+    branch: main
     healthCheckPath: /api/health
     autoDeploy: true
+    previewsEnabled: true  # Enable PR previews
+    pullRequestPreviewsEnabled: true  # Automatic PR previews (use [skip preview] to skip)
     envVars:
       # Server Configuration
       - key: PORT
@@ -51,23 +53,28 @@ services:
 
   # Frontend Service (Angular App)
   - type: web
-    name: nitro-price-calculator-frontend
+    name: nitro-price-calculator
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: ./
     plan: free
     region: frankfurt
-    branch: cors-deployment-fixes
+    branch: main
     healthCheckPath: /health
     autoDeploy: true
+    previewsEnabled: true  # Enable PR previews
+    pullRequestPreviewsEnabled: true  # Automatic PR previews (use [skip preview] to skip)
     envVars:
       # Build Configuration
       - key: NODE_ENV
         value: production
       
-      # Backend API URL (will be updated after backend deployment)
-      - key: API_BASE_URL
-        value: https://nitro-price-calculator-api.onrender.com
+      # Backend API URL (dynamically constructed for PR previews)
+      # Render provides RENDER_SERVICE_NAME which includes PR info
+      - key: BACKEND_URL
+        value: nitro-price-calculator-api.onrender.com
+      - key: BACKEND_HOST
+        value: nitro-price-calculator-api.onrender.com
       
       # Stripe Configuration (Frontend)
       - key: STRIPE_PUBLISHABLE_KEY
