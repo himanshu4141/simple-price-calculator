@@ -4,15 +4,27 @@ import {
   Stripe,
   StripeElements,
   StripeCardElement,
+  StripePaymentElement,
+  StripeAddressElement,
   loadStripe,
-  StripeCardElementOptions
+  StripeCardElementOptions,
+  StripePaymentElementOptions,
+  StripeAddressElementOptions
 } from '@stripe/stripe-js';
 
 import { environment } from '../../environments/environment';
 
-interface StripeState {
+interface StripeElementsState {
   readonly isInitialized: boolean;
-  readonly cardElementContainerId: string | null;
+  readonly hasElements: boolean;
+  readonly hasPaymentElement: boolean;
+  readonly hasAddressElement: boolean;
+}
+
+interface StripeElementData {
+  email?: string;
+  address?: any;
+  paymentMethod?: any;
 }
 
 @Injectable({
@@ -21,12 +33,20 @@ interface StripeState {
 export class StripeService {
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
+  
+  // Legacy Card Element (for backwards compatibility)
   private cardElement: StripeCardElement | null = null;
-  private isStripeInitializedState = false;
   private cardElementContainerId: string | null = null;
+  
+  // New Elements
+  private paymentElement: StripePaymentElement | null = null;
+  private addressElement: StripeAddressElement | null = null;
+  
+  private isStripeInitializedState = false;
 
   constructor(private readonly httpClient: HttpClient) {}
 
+  // Getters for compatibility
   public getElementsInstance(): StripeElements | null {
     return this.elements;
   }
@@ -35,8 +55,71 @@ export class StripeService {
     return this.cardElement;
   }
 
+  // New Element Getters
+  public getPaymentElement(): StripePaymentElement | null {
+    return this.paymentElement;
+  }
+
+  public getAddressElement(): StripeAddressElement | null {
+    return this.addressElement;
+  }
+
   public get isStripeInitialized(): boolean {
     return this.isStripeInitializedState;
+  }
+
+  public getElementsState(): StripeElementsState {
+    return {
+      isInitialized: this.isStripeInitializedState,
+      hasElements: !!this.elements,
+      hasPaymentElement: !!this.paymentElement,
+      hasAddressElement: !!this.addressElement
+    };
+  }
+
+  /**
+   * Get Nitro-themed appearance configuration for all Elements
+   */
+  private getNitroAppearance() {
+    return {
+      theme: 'stripe' as const,
+      variables: {
+        colorPrimary: '#e97924', // Nitro orange
+        colorBackground: '#ffffff',
+        colorText: '#30313d', // Nitro black
+        colorDanger: '#df1b41',
+        fontFamily: 'DM Sans, sans-serif',
+        spacingUnit: '4px',
+        borderRadius: '8px',
+        colorPrimaryText: '#30313d',
+        colorSuccessText: '#065f46',
+        colorDangerText: '#df1b41'
+      },
+      rules: {
+        '.Input': {
+          border: '1px solid #d1d5db',
+          borderRadius: '8px',
+          padding: '12px',
+          fontSize: '16px',
+          transition: 'border-color 0.2s ease'
+        },
+        '.Input:focus': {
+          borderColor: '#e97924',
+          outline: 'none',
+          boxShadow: '0 0 0 3px rgba(233, 121, 36, 0.1)'
+        },
+        '.Label': {
+          fontSize: '14px',
+          fontWeight: '500',
+          color: '#374151',
+          marginBottom: '6px'
+        },
+        '.Error': {
+          color: '#df1b41',
+          fontSize: '14px'
+        }
+      }
+    };
   }
 
   private getCardElementStyle(): StripeCardElementOptions {
@@ -44,75 +127,217 @@ export class StripeService {
       style: {
         base: {
           fontSize: '16px',
-          color: '#424770',
+          color: '#30313d',
+          fontFamily: 'DM Sans, sans-serif',
           '::placeholder': {
-            color: '#aab7c4',
+            color: '#9ca3af',
           },
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         },
         invalid: {
-          color: '#9e2146',
+          color: '#df1b41',
         },
       },
-      hidePostalCode: true, // Hide postal code field since we collect it in billing address
     };
   }
 
   /**
-   * Initialize Stripe with publishable key
+   * Initialize Stripe.js
    */
   async initializeStripe(): Promise<void> {
     if (this.isStripeInitializedState && this.stripe) {
-      console.log('Stripe already initialized.');
+      console.log('✅ Stripe already initialized');
       return;
     }
+
+    console.log('🔧 Initializing Stripe.js...');
     try {
       this.stripe = await loadStripe(environment.stripe.publishableKey);
       if (!this.stripe) {
-        throw new Error('Stripe.js failed to load.');
+        throw new Error('Failed to load Stripe.js');
       }
       this.isStripeInitializedState = true;
-      console.log('✅ Stripe.js loaded and initialized successfully.');
+      console.log('✅ Stripe.js initialized successfully');
     } catch (error) {
-      console.error('❌ Error loading Stripe.js:', error);
-      this.isStripeInitializedState = false;
+      console.error('❌ Error initializing Stripe:', error);
       throw error;
     }
   }
 
   /**
-   * Create Stripe Elements instance for card collection
+   * Create Elements instance with client secret or setup mode
    */
-  createElements(): void {
+  async createElements(clientSecret?: string): Promise<void> {
     if (!this.stripe) {
-      throw new Error('Stripe.js not loaded. Cannot create elements.');
+      throw new Error('Stripe not initialized. Call initializeStripe() first.');
     }
-    if (this.elements) {
-      console.warn('Stripe elements already created. Destroying and recreating.');
-      this.destroyElements();
-    }
-    
+
+    console.log('🔧 Creating Elements instance...', { hasClientSecret: !!clientSecret });
+
     try {
-      this.elements = this.stripe.elements();
-      console.log('✅ Stripe Elements created');
+      const elementsOptions: any = {
+        appearance: this.getNitroAppearance(),
+        loader: 'auto',
+        paymentMethodCreation: 'manual', // Required for manual payment method creation
+        paymentMethodConfiguration: 'pmc_0RciuMRIbsQt5S7qO8K3eHRa' // Use your specific payment method configuration
+      };
+
+      if (clientSecret) {
+        elementsOptions.clientSecret = clientSecret;
+      } else {
+        // Use setup mode for collecting payment methods without immediate payment
+        elementsOptions.mode = 'setup';
+        elementsOptions.currency = 'usd';
+      }
+
+      this.elements = this.stripe.elements(elementsOptions);
+      console.log('✅ Elements instance created successfully with payment method configuration:', 'pmc_0RciuMRIbsQt5S7qO8K3eHRa');
     } catch (error) {
-      console.error('❌ Error creating Stripe Elements:', error);
+      console.error('❌ Error creating Elements:', error);
       throw error;
     }
   }
 
   /**
-   * Create and mount Card Element
+   * Create and mount Payment Element
+   */
+  async createPaymentElement(containerId: string, options?: StripePaymentElementOptions): Promise<StripePaymentElement | null> {
+    if (!this.elements) {
+      throw new Error('Elements not created. Call createElements() first.');
+    }
+
+    console.log('🔧 Creating Payment Element...', { containerId });
+
+    try {
+      // Clean up existing payment element
+      if (this.paymentElement) {
+        this.paymentElement.unmount();
+        this.paymentElement.destroy();
+      }
+
+      const paymentElementOptions: StripePaymentElementOptions = {
+        layout: {
+          type: 'accordion',
+          defaultCollapsed: false,
+          radios: false,
+          spacedAccordionItems: true
+        },
+        defaultValues: options?.defaultValues || {},
+        ...options
+      };
+
+      this.paymentElement = this.elements.create('payment', paymentElementOptions);
+      
+      const container = document.getElementById(containerId);
+      if (!container) {
+        throw new Error(`Container with ID "${containerId}" not found`);
+      }
+
+      await this.paymentElement.mount(`#${containerId}`);
+      console.log('✅ Payment Element mounted successfully with payment method configuration');
+      
+      return this.paymentElement;
+    } catch (error) {
+      console.error('❌ Error creating Payment Element:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create and mount Address Element
+   */
+  async createAddressElement(containerId: string, options?: StripeAddressElementOptions): Promise<StripeAddressElement | null> {
+    if (!this.elements) {
+      throw new Error('Elements not created. Call createElements() first.');
+    }
+
+    console.log('🔧 Creating Address Element...', { containerId });
+
+    try {
+      // Clean up existing address element
+      if (this.addressElement) {
+        this.addressElement.unmount();
+        this.addressElement.destroy();
+      }
+
+      const addressElementOptions: StripeAddressElementOptions = {
+        mode: 'billing',
+        allowedCountries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'SE', 'NO', 'DK', 'FI'],
+        blockPoBox: true,
+        autocomplete: {
+          mode: 'automatic'
+        },
+        fields: {
+          phone: 'auto'
+        },
+        ...options
+      };
+
+      this.addressElement = this.elements.create('address', addressElementOptions);
+      
+      const container = document.getElementById(containerId);
+      if (!container) {
+        throw new Error(`Container with ID "${containerId}" not found`);
+      }
+
+      await this.addressElement.mount(`#${containerId}`);
+      console.log('✅ Address Element mounted successfully');
+      
+      return this.addressElement;
+    } catch (error) {
+      console.error('❌ Error creating Address Element:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Collect data from all Elements
+   */
+  async collectElementData(): Promise<StripeElementData> {
+    const data: StripeElementData = {};
+
+    try {
+      // Skip email collection - will be handled by form field
+      // Collect address from Address Element
+      if (this.addressElement) {
+        const addressValue = await this.addressElement.getValue();
+        if (addressValue.complete && addressValue.value) {
+          data.address = addressValue.value;
+          console.log('📍 Address data collected:', addressValue.value);
+        } else {
+          throw new Error('Complete billing address is required. Please fill in all required address fields.');
+        }
+      } else {
+        throw new Error('Address Element is required but not initialized');
+      }
+
+      // For Payment Element, we need to use submit() to get the payment method
+      if (this.paymentElement) {
+        console.log('� Payment Element is available - payment method will be created during form submission');
+        // Note: The actual payment method creation happens during form submission
+        // We'll need to call this.elements.submit() and then stripe.confirmPayment()
+      } else {
+        throw new Error('Payment Element is required but not initialized');
+      }
+
+      console.log('�📊 Element data collected successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Error collecting element data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy Card Element methods for backwards compatibility
    */
   async createCardElement(containerId: string): Promise<StripeCardElement | null> {
-    console.log('🔧 Creating card element...', {
-      containerId,
-      existingCardElement: !!this.cardElement,
-      elementsCreated: !!this.elements
-    });
+    console.log('🔧 Creating legacy card element...', { containerId });
 
     await this.cleanupExistingCardElement();
-    this.validateElementsAndContainer(containerId);
+    
+    if (!this.elements) {
+      await this.createElements();
+    }
 
     const container = document.getElementById(containerId);
     if (!container) {
@@ -120,8 +345,10 @@ export class StripeService {
     }
 
     try {
-      await this.mountCardElementToContainer(container, containerId);
-      await this.verifyCardElementMount(container);
+      this.cardElement = this.elements!.create('card', this.getCardElementStyle());
+      await this.cardElement.mount(`#${containerId}`);
+      this.cardElementContainerId = containerId;
+      console.log('✅ Legacy Card Element mounted successfully');
       return this.cardElement;
     } catch (error) {
       console.error('❌ Error creating card element:', error);
@@ -131,7 +358,7 @@ export class StripeService {
 
   private async cleanupExistingCardElement(): Promise<void> {
     if (this.cardElement) {
-      console.log('🧹 Destroying existing card element before creating new one');
+      console.log('🧹 Destroying existing card element');
       try {
         this.cardElement.unmount();
         this.cardElement.destroy();
@@ -142,67 +369,7 @@ export class StripeService {
     }
   }
 
-  private validateElementsAndContainer(containerId: string): void {
-    if (!this.elements) {
-      throw new Error('Elements not created. Call createElements() first.');
-    }
-
-    const container = document.getElementById(containerId);
-    if (!container) {
-      throw new Error(`Container with ID "${containerId}" not found`);
-    }
-  }
-
-  private async mountCardElementToContainer(container: HTMLElement, containerId: string): Promise<void> {
-    // Clear container completely and ensure it's ready
-    container.innerHTML = '';
-    
-    // Wait a moment for DOM to be fully ready
-    await this.delay(50);
-
-    // Create and mount card element
-    this.cardElement = this.elements!.create('card', this.getCardElementStyle());
-    this.cardElement.mount(`#${containerId}`);
-    this.cardElementContainerId = containerId;
-
-    console.log('✅ Card Element mounted in container:', containerId);
-
-    // Add event listeners for real-time validation
-    this.setupCardElementEventListeners();
-  }
-
-  private setupCardElementEventListeners(): void {
-    if (!this.cardElement) return;
-
-    this.cardElement.on('change', (event) => {
-      if (event.error) {
-        console.warn('Card element validation error:', event.error);
-      } else {
-        console.log('Card element is valid');
-      }
-    });
-  }
-
-  private async verifyCardElementMount(container: HTMLElement): Promise<void> {
-    // Verify mount was successful by checking for Stripe's iframe
-    await this.delay(100);
-    
-    const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
-    if (!stripeFrame) {
-      throw new Error('Card Element mount verification failed - no Stripe iframe found');
-    }
-    
-    console.log('✅ Card Element mount verified with iframe present');
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Create payment method from card element (Modern approach - preferred over tokens)
-   */
-  async createPaymentMethod(billingDetails: {
+  async createPaymentMethod(billingDetails?: {
     name: string;
     email: string;
     address_line1: string;
@@ -211,60 +378,24 @@ export class StripeService {
     address_zip: string;
     address_country: string;
   }): Promise<{ paymentMethod?: any; error?: any }> {
-    console.log('🔧 Starting PaymentMethod creation...', {
-      stripeInitialized: !!this.stripe,
-      cardElementExists: !!this.cardElement,
-      elementsExists: !!this.elements,
-      containerId: this.cardElementContainerId
-    });
-
     if (!this.stripe) {
-      const error = { message: 'Stripe not initialized' };
-      console.error('❌ Stripe not ready:', error);
-      return { error };
+      throw new Error('Stripe not initialized');
     }
 
-    // Ensure we have a fresh, valid card element before attempting PaymentMethod creation
-    if (!this.cardElement || !this.cardElementContainerId) {
-      const error = { message: 'Card Element not properly initialized' };
-      console.error('❌ Card Element not ready:', error);
-      return { error };
-    }
-
-    try {
-      // Capture DOM reference and debug current state
-      console.log('🔍 Pre-validation check completed');
-      
-      const container = document.getElementById(this.cardElementContainerId);
-      if (!container) {
-        console.error('❌ Card element container missing from DOM');
-        return { error: { message: 'Payment form container not found' } };
-      }
-
-      // Check if the element appears to be mounted by looking for Stripe's iframe
-      const stripeFrame = container.querySelector('iframe[name^="__privateStripeFrame"]');
-      if (!stripeFrame) {
-        console.error('❌ Stripe iframe not found - element appears unmounted');
-        return { error: { message: 'Payment form not ready. Please refresh the page and try again.' } };
-      }
-
-      // Verify the container is visible and accessible
-      const computedStyle = window.getComputedStyle(container);
-      if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-        console.error('❌ Card element container is hidden');
-        return { error: { message: 'Payment form is not visible. Please ensure the form is displayed.' } };
-      }
-
-      console.log('🔄 About to call stripe.createPaymentMethod...');
-      
-      // Final debug check right before Stripe call
-      console.log('🔍 Final pre-call validation completed');
-      
-      // Create PaymentMethod - this is the critical call that's been failing
-      const result = await this.stripe.createPaymentMethod({
+    if (this.paymentElement) {
+      // New Payment Element flow
+      return await this.stripe.createPaymentMethod({
+        elements: this.elements!,
+      });
+    } else if (this.cardElement) {
+      // Legacy Card Element flow with billing details
+      const createPaymentMethodOptions: any = {
         type: 'card',
         card: this.cardElement,
-        billing_details: {
+      };
+
+      if (billingDetails) {
+        createPaymentMethodOptions.billing_details = {
           name: billingDetails.name,
           email: billingDetails.email,
           address: {
@@ -274,141 +405,70 @@ export class StripeService {
             postal_code: billingDetails.address_zip,
             country: billingDetails.address_country,
           },
+        };
+      }
+
+      return await this.stripe.createPaymentMethod(createPaymentMethodOptions);
+    } else {
+      throw new Error('No payment element available');
+    }
+  }
+
+  async confirmPayment(clientSecret: string, redirectUrl?: string): Promise<any> {
+    if (!this.stripe) {
+      throw new Error('Stripe not initialized');
+    }
+
+    if (this.paymentElement) {
+      // New Payment Element flow
+      return await this.stripe.confirmPayment({
+        elements: this.elements!,
+        clientSecret,
+        confirmParams: {
+          return_url: redirectUrl || window.location.href,
         },
       });
-
-      if (result.error) {
-        console.error('❌ Error creating PaymentMethod:', result.error);
-        
-        // If element unmounted error, try to recreate element and retry once
-        if (result.error.message && 
-            result.error.message.includes('Element')) {
-          console.log('🔄 Element unmounted error detected, attempting to recreate element...');
-          return await this.recreateElementAndRetry(billingDetails);
-        }
-        
-        return { error: result.error };
+    } else if (this.cardElement) {
+      // Legacy Card Element flow
+      const { paymentMethod, error } = await this.createPaymentMethod();
+      if (error) {
+        return { error };
       }
 
-      if (result.paymentMethod) {
-        console.log('✅ PaymentMethod created successfully:', result.paymentMethod.id);
-        return { paymentMethod: result.paymentMethod };
-      }
-
-      return { error: { message: 'No PaymentMethod returned from Stripe' } };
-    } catch (error) {
-      console.error('❌ Exception during PaymentMethod creation:', error);
-      return { error };
-    }
-  }
-
-  /**
-   * Recreate element and retry PaymentMethod creation (fallback for unmounted element)
-   */
-  private async recreateElementAndRetry(billingDetails: {
-    name: string;
-    email: string;
-    address_line1: string;
-    address_city: string;
-    address_state: string;
-    address_zip: string;
-    address_country: string;
-  }): Promise<{ paymentMethod?: any; error?: any }> {
-    try {
-      console.log('🔧 Recreating card element after unmount error...');
-      
-      if (!this.cardElementContainerId) {
-        return { error: { message: 'No container ID available for element recreation' } };
-      }
-
-      // Recreate the card element
-      await this.createCardElement(this.cardElementContainerId);
-      
-      // Wait a bit for the element to be fully mounted
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      if (!this.cardElement) {
-        return { error: { message: 'Failed to recreate card element' } };
-      }
-
-      console.log('🔄 Retrying PaymentMethod creation with recreated element...');
-      
-      // Retry PaymentMethod creation
-      const result = await this.stripe!.createPaymentMethod({
-        type: 'card',
-        card: this.cardElement,
-        billing_details: {
-          name: billingDetails.name,
-          email: billingDetails.email,
-          address: {
-            line1: billingDetails.address_line1,
-            city: billingDetails.address_city,
-            state: billingDetails.address_state,
-            postal_code: billingDetails.address_zip,
-            country: billingDetails.address_country,
-          },
-        },
+      return await this.stripe.confirmCardPayment(clientSecret, {
+        payment_method: paymentMethod.id
       });
-
-      if (result.error) {
-        console.error('❌ Retry also failed:', result.error);
-        return { error: result.error };
-      }
-
-      if (result.paymentMethod) {
-        console.log('✅ PaymentMethod created successfully on retry:', result.paymentMethod.id);
-        return { paymentMethod: result.paymentMethod };
-      }
-
-      return { error: { message: 'No PaymentMethod returned on retry' } };
-    } catch (error) {
-      console.error('❌ Element recreation failed:', error);
-      return { error };
+    } else {
+      throw new Error('No payment element available');
     }
   }
 
   /**
-   * Validate Card Element before submission
-   */
-  async validateCardElement(): Promise<{ complete: boolean; error?: any }> {
-    if (!this.cardElement) {
-      return { complete: false, error: { message: 'Card Element not initialized' } };
-    }
-
-    if (!this.elements) {
-      return { complete: false, error: { message: 'Card elements not initialized' } };
-    }
-
-    try {
-      // Check if element is still mounted by verifying container exists
-      if (this.cardElementContainerId) {
-        const container = document.getElementById(this.cardElementContainerId);
-        if (!container) {
-          return { complete: false, error: { message: 'Card Element container no longer exists' } };
-        }
-      }
-
-      // For PaymentMethod approach, we don't need to check completion here
-      // The createPaymentMethod call will validate the card data
-      console.log('✅ Card Element validation passed');
-      return { complete: true };
-    } catch (error) {
-      console.error('❌ Card Element validation failed:', error);
-      return { complete: false, error };
-    }
-  }
-
-  /**
-   * Get card element validation status
-   */
-  async getCardElementStatus(): Promise<{ complete: boolean; error?: any }> {
-    return this.validateCardElement();
-  }
-
-  /**
-   * Destroy elements (cleanup)
+   * Destroy all elements (cleanup)
    */
   destroyElements(): void {
+    console.log('🧹 Destroying all Stripe elements...');
+
+    if (this.paymentElement) {
+      try {
+        this.paymentElement.unmount();
+        this.paymentElement.destroy();
+      } catch (error) {
+        console.warn('⚠️ Error destroying payment element:', error);
+      }
+      this.paymentElement = null;
+    }
+
+    if (this.addressElement) {
+      try {
+        this.addressElement.unmount();
+        this.addressElement.destroy();
+      } catch (error) {
+        console.warn('⚠️ Error destroying address element:', error);
+      }
+      this.addressElement = null;
+    }
+
     if (this.cardElement) {
       try {
         this.cardElement.unmount();
@@ -418,64 +478,120 @@ export class StripeService {
       }
       this.cardElement = null;
     }
+
     if (this.elements) {
       this.elements = null;
     }
-    console.log('🧹 Stripe elements cleaned up');
+    
+    console.log('✅ All Stripe elements cleaned up');
   }
 
   /**
-   * Force remount of Card Element (for troubleshooting)
-   */
-  forceRemountCardElement = async (): Promise<void> => {
-    console.log("🔄 StripeService: Forcing remount of Card Element...");
-    if (!this.stripe) {
-      console.error("❌ Stripe.js not loaded. Cannot remount.");
-      throw new Error("Stripe.js not loaded.");
-    }
-
-    if (!this.cardElementContainerId) {
-      console.error("❌ Card element container ID not known. Cannot remount.");
-      throw new Error("Card element container ID not known for remounting.");
-    }
-
-    this.destroyElements(); // Destroy existing elements first
-
-    try {
-      console.log("Re-creating Elements instance for remount");
-      this.elements = this.stripe.elements();
-      
-      console.log("Re-creating Card Element for remount in container:", this.cardElementContainerId);
-      this.cardElement = this.elements.create('card', this.getCardElementStyle());
-      
-      if (this.cardElement) {
-        this.cardElement.mount(`#${this.cardElementContainerId}`);
-        console.log("✅ Card Element remounted successfully in StripeService.");
-      } else {
-        throw new Error('Failed to create card element during remount.');
-      }
-    } catch (error) {
-      console.error("❌ Error during forceRemountCardElement in StripeService:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Check if Stripe is properly initialized
+   * Utility methods
    */
   isReady(): boolean {
     return this.isStripeInitialized && this.stripe !== null;
   }
 
-  /**
-   * Check if Card Element is ready
-   */
   isCardElementReady(): boolean {
     return !!this.cardElement;
+  }
+
+  isPaymentElementReady(): boolean {
+    return !!this.paymentElement;
   }
 
   isStripeJsLoaded(): boolean {
     return this.isStripeInitialized && this.stripe !== null;
   }
 
+  // Legacy methods for backwards compatibility
+  async getCardElementStatus(): Promise<{ complete: boolean; error?: any }> {
+    if (!this.cardElement) {
+      return { complete: false, error: 'Card element not available' };
+    }
+    
+    // This is a simplified implementation
+    return { complete: true };
+  }
+
+  forceRemountCardElement = async (): Promise<void> => {
+    if (!this.cardElementContainerId) {
+      throw new Error("Card element container ID not known for remounting.");
+    }
+
+    await this.cleanupExistingCardElement();
+    await this.createCardElement(this.cardElementContainerId);
+  }
+
+  /**
+   * Submit the elements form and create a payment method
+   * This is the proper flow for Payment Element
+   */
+  async submitAndCreatePaymentMethod(email: string): Promise<{paymentMethodId: string, elementData: StripeElementData}> {
+    if (!this.stripe || !this.elements) {
+      throw new Error('Stripe is not initialized');
+    }
+
+    // Validate email
+    if (!email || !email.trim()) {
+      throw new Error('Email is required');
+    }
+
+    console.log('🔧 Submitting elements and creating payment method...');
+
+    try {
+      // First collect element data (address only, email comes from parameter)
+      const elementData = await this.collectElementData();
+      
+      // Add email to element data
+      elementData.email = email.trim();
+
+      // Submit the elements to validate them
+      const {error: submitError} = await this.elements.submit();
+      if (submitError) {
+        console.error('❌ Elements validation failed:', submitError);
+        throw new Error(submitError.message || 'Payment form validation failed');
+      }
+
+      // Create payment method from the Payment Element
+      const {error: paymentMethodError, paymentMethod} = await this.stripe.createPaymentMethod({
+        elements: this.elements,
+        params: {
+          billing_details: {
+            email: elementData.email,
+            name: elementData.address?.name,
+            address: {
+              line1: elementData.address?.address?.line1,
+              line2: elementData.address?.address?.line2,
+              city: elementData.address?.address?.city,
+              state: elementData.address?.address?.state,
+              postal_code: elementData.address?.address?.postal_code,
+              country: elementData.address?.address?.country,
+            }
+          }
+        }
+      });
+
+      if (paymentMethodError) {
+        console.error('❌ Payment method creation failed:', paymentMethodError);
+        throw new Error(paymentMethodError.message || 'Failed to create payment method');
+      }
+
+      if (!paymentMethod) {
+        throw new Error('Payment method creation failed - no payment method returned');
+      }
+
+      console.log('✅ Payment method created successfully:', paymentMethod.id);
+      
+      return {
+        paymentMethodId: paymentMethod.id,
+        elementData: elementData
+      };
+
+    } catch (error) {
+      console.error('❌ Error in submitAndCreatePaymentMethod:', error);
+      throw error;
+    }
+  }
 }

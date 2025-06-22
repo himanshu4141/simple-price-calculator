@@ -1,0 +1,220 @@
+<div class="checkout-container">
+  <!-- Header -->
+  <div class="checkout-header">
+    <div class="header-content">
+      <h1>Complete Your Order</h1>
+      <p class="subtitle">Secure checkout for your Nitro products</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isInitialLoading" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading secure checkout form...</p>
+  </div>
+
+  <!-- Checkout Complete State -->
+  <div *ngIf="checkoutComplete" class="checkout-success">
+    <div class="success-icon">✅</div>
+    <h2>Order Complete!</h2>
+    <p>Thank you for your purchase. You will receive a confirmation email shortly.</p>
+    <button class="primary-button" (click)="startNewOrder()">Start New Order</button>
+  </div>
+
+  <!-- Main Checkout Form -->
+  <div *ngIf="!checkoutComplete && !isInitialLoading" class="checkout-content" [class.processing]="isProcessingPayment">
+    
+    <!-- Processing Overlay -->
+    <div *ngIf="isProcessingPayment" class="processing-overlay">
+      <div class="spinner"></div>
+      <p>Processing your order...</p>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="order-summary">
+      <h2>Order Summary</h2>
+      
+      <div class="summary-items">
+        <div *ngIf="selectedPdfPlan" class="summary-item">
+          <div class="item-details">
+            <span class="product-name">Nitro PDF - {{ selectedPdfPlan }}</span>
+            <span class="item-quantity">{{ pdfSeats }} {{ pdfSeats === 1 ? 'seat' : 'seats' }}</span>
+          </div>
+        </div>
+        
+        <div *ngIf="selectedSignPlan" class="summary-item">
+          <div class="item-details">
+            <span class="product-name">Nitro Sign - {{ selectedSignPlan }}</span>
+            <span class="item-quantity">{{ signSeats }} {{ signSeats === 1 ? 'seat' : 'seats' }}</span>
+            <div *ngIf="signPackages > 0" class="addon-details">
+              <span>+ {{ signPackages }} signature packages</span>
+            </div>
+            <div *ngIf="signApiCalls > 0" class="addon-details">
+              <span>+ {{ signApiCalls }} API calls</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="price-breakdown">
+        <div class="price-line">
+          <span>Subtotal:</span>
+          <span class="amount">{{ formatPrice(estimateTotal) }}</span>
+        </div>
+        <div class="price-line" *ngIf="taxAmount > 0">
+          <span>Tax:</span>
+          <span class="amount">{{ formatPrice(taxAmount) }}</span>
+        </div>
+        <div class="price-line total">
+          <span>Total:</span>
+          <span class="amount">{{ formatPrice(finalTotal) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stripe Elements Checkout Form -->
+    <div class="checkout-form-container">
+      
+      <!-- Email Input Field -->
+      <div class="form-section">
+        <h3>Contact Information</h3>
+        <div class="element-container">
+          <div class="email-input-container">
+            <label for="customer-email">Email Address</label>
+            <input 
+              id="customer-email"
+              type="email" 
+              [(ngModel)]="customerEmail"
+              placeholder="Enter your email address"
+              required
+              class="email-input"
+              [class.error]="!customerEmail && errorMessage"
+            />
+          </div>
+          <div *ngIf="!customerEmail && errorMessage" class="error-message">
+            Email is required
+          </div>
+        </div>
+      </div>
+
+      <!-- Address Element (Billing Address & Name) -->
+      <div class="form-section">
+        <h3>Billing Information</h3>
+        <div class="element-container">
+          <div id="address-element" class="stripe-element">
+            <!-- Address Element will mount here -->
+          </div>
+          <div *ngIf="elementErrors.address" class="error-message">
+            {{ elementErrors.address }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Element (Payment Methods) -->
+      <div *ngIf="term === '1year'" class="form-section">
+        <h3>Payment Information</h3>
+        <div class="element-container">
+          <div id="payment-element" class="stripe-element">
+            <!-- Payment Element will mount here -->
+          </div>
+          <div *ngIf="elementErrors.payment" class="error-message">
+            {{ elementErrors.payment }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Year Terms Message -->
+      <div *ngIf="term === '3year'" class="sales-contact-section">
+        <div class="sales-info">
+          <div class="info-icon">💼</div>
+          <h3>Enterprise Pricing Available</h3>
+          <p>For 3-year commitments, our sales team will provide you with a custom quote and dedicated support.</p>
+          <button type="button" class="secondary-button" (click)="contactSales()">
+            Contact Sales Team
+          </button>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-banner">
+        <div class="error-icon">⚠️</div>
+        <div class="error-content">
+          <strong>Payment Error</strong>
+          <p>{{ errorMessage }}</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="form-actions">
+        <button type="button" class="secondary-button" (click)="returnToCart()">
+          <span class="button-icon">←</span>
+          Return to Cart
+        </button>
+        
+        <!-- 1-Year Terms: Process Payment -->
+        <button 
+          *ngIf="term === '1year'"
+          type="button" 
+          class="primary-button" 
+          (click)="processPayment()"
+          [disabled]="!elementsReady || isProcessingPayment"
+        >
+          <span *ngIf="!isProcessingPayment" class="button-content">
+            <span class="button-icon">🔒</span>
+            Complete Order - {{ formatPrice(finalTotal) }}
+          </span>
+          <span *ngIf="isProcessingPayment" class="button-content">
+            <span class="spinner-small"></span>
+            Processing...
+          </span>
+        </button>
+
+        <!-- 3-Year Terms: Contact Sales -->
+        <button 
+          *ngIf="term === '3year'"
+          type="button" 
+          class="primary-button" 
+          (click)="contactSales()"
+        >
+          <span class="button-icon">💼</span>
+          Get Quote from Sales
+        </button>
+      </div>
+
+      <!-- Security Notice -->
+      <div class="security-notice">
+        <div class="security-icon">🔒</div>
+        <p>Your payment information is encrypted and secure. Powered by Stripe.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Sales Contact Modal -->
+  <div *ngIf="showSalesModal" class="modal-overlay" (click)="closeSalesModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Contact Sales Team</h3>
+        <button class="close-button" (click)="closeSalesModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Thank you for your interest in our 3-year enterprise plans!</p>
+        <p>Our sales team will contact you within 24 hours to provide:</p>
+        <ul>
+          <li>Custom pricing for your requirements</li>
+          <li>Volume discounts</li>
+          <li>Dedicated account management</li>
+          <li>Priority support</li>
+        </ul>
+        <div class="contact-info">
+          <p><strong>Or contact us directly:</strong></p>
+          <p>📧 Email: sales&#64;nitro.com</p>
+          <p>📞 Phone: 1-800-NITRO-PDF</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="primary-button" (click)="closeSalesModal()">Got it, thanks!</button>
+      </div>
+    </div>
+  </div>
+</div>

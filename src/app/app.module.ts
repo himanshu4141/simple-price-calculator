@@ -21,13 +21,14 @@ import { PricingPageComponent } from './components/pricing-page/pricing-page.com
 import { CartPageComponent } from './components/cart-page/cart-page.component';
 import { PriceCalculatorComponent } from './components/price-calculator/price-calculator.component';
 import { CheckoutPageComponent } from './components/checkout-page/checkout-page.component';
+import { CheckoutPageEnhancedComponent } from './components/checkout-page/checkout-page.enhanced.component';
 import { CurrencySelectorComponent } from './components/currency-selector.component';
 
 const routes: Routes = [
   { path: '', component: PricingPageComponent },
   { path: 'cart', component: CartPageComponent },
   { path: 'calculator', component: PriceCalculatorComponent },
-  { path: 'checkout', component: CheckoutPageComponent }
+  { path: 'checkout', component: CheckoutPageEnhancedComponent }
 ];
 
 @NgModule({
@@ -37,6 +38,7 @@ const routes: Routes = [
     CartPageComponent,
     PriceCalculatorComponent,
     CheckoutPageComponent,
+    CheckoutPageEnhancedComponent,
     CurrencySelectorComponent
   ],
   imports: [
