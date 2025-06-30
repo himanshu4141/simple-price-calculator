@@ -90,6 +90,7 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initializeCartFromQueryParams();
     this.initializeCheckout();
+    this.subscribeToLocalizationChanges();
   }
 
   ngOnDestroy(): void {
@@ -199,7 +200,7 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
       // Build estimate request based on query parameters
       const estimateRequest = {
         items: estimateItems,
-        currency: 'USD', // TODO: Get from localization service
+        currency: this.localizationService.currentCurrency, // Use current currency from localization
         billingTerm: this.term
       };
       
@@ -295,14 +296,29 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
         isInitialLoading: this.isInitialLoading
       });
       
-      // Initialize Stripe and create Elements instance
+      // Get current localization settings
+      const currentLocalization = this.localizationService.currentLocalization;
+      const currentCurrency = this.localizationService.currentCurrency;
+      
+      console.log('🌍 Using localization settings:', {
+        currency: currentCurrency,
+        locale: currentLocalization.locale
+      });
+      
+      // Initialize Stripe
       await this.stripeService.initializeStripe();
-      await this.stripeService.createElements();
+      
+      // Create Elements with localization options
+      await this.stripeService.createElements(undefined, {
+        locale: this.getStripeLocale(currentLocalization.locale),
+        currency: currentCurrency.toLowerCase(),
+        country: this.getCountryFromCurrency(currentCurrency)
+      });
       
       // Add another delay to ensure DOM elements are present
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Initialize Address element
+      // Initialize Address element with localized defaults
       await this.initializeAddressElement();
       
       // Initialize Payment Element only if we're on 1-year terms
@@ -313,7 +329,7 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
       }
       
       this.elementsReady = true;
-      console.log('✅ All Stripe Elements initialized');
+      console.log('✅ All Stripe Elements initialized with localization');
       
     } catch (error) {
       console.error('❌ Error initializing Stripe elements:', error);
@@ -336,15 +352,33 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
         throw new Error('Container not found');
       }
       
-      const addressElement = await this.stripeService.createAddressElement('address-element', {
-        mode: 'billing',
-        defaultValues: {
-          name: '',
-          address: {
-            country: 'US'
-          }
-        }
+      // Get current localization settings
+      const currentLocalization = this.localizationService.currentLocalization;
+      const currentCurrency = this.localizationService.currentCurrency;
+      const defaultCountry = this.getCountryFromCurrency(currentCurrency);
+      
+      console.log('🌍 Creating Address Element with localization:', {
+        currency: currentCurrency,
+        locale: currentLocalization.locale,
+        defaultCountry
       });
+      
+      const addressElement = await this.stripeService.createAddressElement(
+        'address-element', 
+        {
+          mode: 'billing',
+          defaultValues: {
+            name: '',
+            address: {
+              country: defaultCountry
+            }
+          }
+        },
+        {
+          country: defaultCountry,
+          locale: currentLocalization.locale
+        }
+      );
       
       if (addressElement) {
         // Set up address change listener for tax calculation
@@ -356,7 +390,7 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
         });
         
         this.isAddressElementReady = true;
-        console.log('✅ Address Element initialized');
+        console.log('✅ Address Element initialized with localized defaults');
       } else {
         console.warn('⚠️ Address Element returned null');
       }
@@ -434,12 +468,12 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
             description: 'Nitro Products',
             amount: {
               amount: this.estimateTotal,
-              currency: 'USD'
+              currency: this.localizationService.currentCurrency // Use current currency
             },
             taxable: true
           }
         ],
-        currency: 'USD'
+        currency: this.localizationService.currentCurrency // Use current currency
       };
       
       console.log('📊 Tax request:', taxRequest);
@@ -740,5 +774,82 @@ export class CheckoutPageEnhancedComponent implements OnInit, OnDestroy {
     }
     
     return null;
+  }
+
+  // Helper methods for localization
+  private getStripeLocale(locale: string): string {
+    // Map our locale to Stripe supported locales
+    // Stripe supports: en, de, es, fr, it, ja, nl, pl, pt, sv, etc.
+    const localeMap: Record<string, string> = {
+      'en-US': 'en',
+      'en-CA': 'en', 
+      'en-GB': 'en',
+      'en-AU': 'en',
+      'de-DE': 'de',
+      'fr-FR': 'fr',
+      'es-ES': 'es',
+      'it-IT': 'it',
+      'nl-NL': 'nl',
+      'sv-SE': 'sv',
+      'pt-PT': 'pt',
+      'pl-PL': 'pl'
+    };
+    
+    return localeMap[locale] || 'en'; // Default to English
+  }
+
+  private getCountryFromCurrency(currency: string): string {
+    // Map currency to most likely country for address defaults
+    const currencyToCountryMap: Record<string, string> = {
+      'USD': 'US',
+      'CAD': 'CA',
+      'GBP': 'GB', 
+      'AUD': 'AU',
+      'EUR': 'DE' // Default to Germany for EUR, but users can change
+    };
+    
+    return currencyToCountryMap[currency] || 'US';
+  }
+
+  private subscribeToLocalizationChanges(): void {
+    this.localizationService.localization$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(async (localizationState) => {
+        console.log('🌍 Localization changed on checkout page:', localizationState);
+        
+        // If Elements are already initialized, reinitialize them with new settings
+        if (this.elementsReady && !this.isInitialLoading) {
+          console.log('🔄 Reinitializing Stripe Elements due to localization change...');
+          await this.reinitializeStripeElements();
+        }
+        
+        // Recalculate pricing with new currency
+        await this.calculatePricing();
+      });
+  }
+
+  private async reinitializeStripeElements(): Promise<void> {
+    try {
+      console.log('🔄 Reinitializing Stripe Elements with new localization...');
+      
+      // Destroy existing elements
+      this.stripeService.destroyElements();
+      
+      // Reset ready states
+      this.isAddressElementReady = false;
+      this.isPaymentElementReady = false;
+      this.elementsReady = false;
+      
+      // Wait a moment for DOM cleanup
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Reinitialize with new localization settings
+      await this.initializeStripeElements();
+      
+      console.log('✅ Stripe Elements reinitialized successfully');
+    } catch (error) {
+      console.error('❌ Error reinitializing Stripe elements:', error);
+      this.errorMessage = 'Failed to update payment form. Please refresh the page.';
+    }
   }
 }

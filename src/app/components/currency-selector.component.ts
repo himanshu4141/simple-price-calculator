@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { LocalizationService, CurrencyInfo, LocalizationState } from '../services/localization.service';
+import { LocationService, LocationInfo } from '../services/location.service';
 
 @Component({
   selector: 'app-currency-selector',
@@ -9,30 +10,37 @@ import { LocalizationService, CurrencyInfo, LocalizationState } from '../service
     <div class="currency-selector">
       <button 
         class="currency-button"
-        [attr.aria-label]="'Current currency: ' + currentCurrency.name"
         (click)="toggleDropdown()"
         type="button">
-        <span class="currency-flag">{{ currentCurrency.flag }}</span>
-        <span class="currency-code">{{ currentCurrency.code }}</span>
+        <span class="currency-flag">{{ currentCurrency?.flag || '🌍' }}</span>
+        <span class="currency-code">{{ currentCurrency?.code || 'USD' }}</span>
         <span class="dropdown-arrow" [class.rotated]="isDropdownOpen">▼</span>
       </button>
 
-      <div class="currency-dropdown" [class.open]="isDropdownOpen" *ngIf="isDropdownOpen">
+      <!-- Overlay to close dropdown when clicking outside -->
+      <div 
+        class="dropdown-overlay" 
+        *ngIf="isDropdownOpen"
+        (click)="closeDropdown()">
+      </div>
+
+      <div class="currency-dropdown" [class.open]="isDropdownOpen">
         <div class="dropdown-header">
           <span class="dropdown-title">Select Currency</span>
+          <div class="location-info" *ngIf="detectedLocation">
+            <small class="location-text">
+              <span class="location-icon">📍</span>
+              Detected: {{ detectedLocation.country }}
+            </small>
+          </div>
         </div>
         
         <ul class="currency-list" role="listbox">
           <li 
-            *ngFor="let currency of supportedCurrencies; trackBy: trackByCurrency"
+            *ngFor="let currency of supportedCurrencies"
             class="currency-option"
-            [class.selected]="currency.code === currentCurrency.code"
-            [attr.aria-selected]="currency.code === currentCurrency.code"
-            role="option"
-            (click)="selectCurrency(currency)"
-            (keydown.enter)="selectCurrency(currency)"
-            (keydown.space)="selectCurrency(currency)"
-            tabindex="0">
+            [class.selected]="currency.code === currentCurrency?.code"
+            (click)="selectCurrency(currency)">
             <span class="currency-flag">{{ currency.flag }}</span>
             <div class="currency-info">
               <span class="currency-code">{{ currency.code }}</span>
@@ -41,13 +49,6 @@ import { LocalizationService, CurrencyInfo, LocalizationState } from '../service
             <span class="currency-symbol">{{ currency.symbol }}</span>
           </li>
         </ul>
-      </div>
-
-      <!-- Overlay to close dropdown when clicking outside -->
-      <div 
-        class="dropdown-overlay" 
-        *ngIf="isDropdownOpen"
-        (click)="closeDropdown()">
       </div>
     </div>
   `,
@@ -119,29 +120,25 @@ import { LocalizationService, CurrencyInfo, LocalizationState } from '../service
       left: 0;
       right: 0;
       margin-top: 4px;
-      background: var(--surface-color, #ffffff);
-      border: 1px solid var(--border-color, #e0e0e0);
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 999;
+      z-index: 9999;
       min-width: 200px;
       max-height: 300px;
       overflow: hidden;
+      display: none;
     }
 
     .currency-dropdown.open {
-      animation: fadeInDown 0.2s ease;
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
     }
 
-    @keyframes fadeInDown {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .dropdown-header {
@@ -156,6 +153,22 @@ import { LocalizationService, CurrencyInfo, LocalizationState } from '../service
       color: var(--text-secondary-color, #666666);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+
+    .location-info {
+      margin-top: 4px;
+    }
+
+    .location-text {
+      font-size: 11px;
+      color: var(--text-tertiary-color, #888888);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .location-icon {
+      font-size: 10px;
     }
 
     .currency-list {
@@ -240,13 +253,21 @@ import { LocalizationService, CurrencyInfo, LocalizationState } from '../service
 export class CurrencySelectorComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   
-  currentCurrency: CurrencyInfo;
-  supportedCurrencies: readonly CurrencyInfo[];
+  currentCurrency: CurrencyInfo | null = null;
+  supportedCurrencies: readonly CurrencyInfo[] = [];
   isDropdownOpen = false;
+  detectedLocation: LocationInfo | null = null;
 
-  constructor(private readonly localizationService: LocalizationService) {
-    this.supportedCurrencies = this.localizationService.getSupportedCurrencies();
-    this.currentCurrency = this.localizationService.currentCurrencyInfo;
+  constructor(
+    private readonly localizationService: LocalizationService,
+    private readonly locationService: LocationService
+  ) {
+    try {
+      this.supportedCurrencies = this.localizationService.getSupportedCurrencies();
+      this.currentCurrency = this.localizationService.currentCurrencyInfo;
+    } catch (error) {
+      console.error('❌ Error initializing currency selector:', error);
+    }
   }
 
   ngOnInit(): void {
@@ -257,7 +278,19 @@ export class CurrencySelectorComponent implements OnInit, OnDestroy {
         this.currentCurrency = state.currency;
       });
 
-    // Close dropdown when clicking outside (handled by overlay)
+    // Get location info (don't wait for it)
+    this.locationService.detectUserLocation()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (location) => {
+          this.detectedLocation = location;
+        },
+        error: (error) => {
+          console.warn('Location detection failed:', error);
+          this.detectedLocation = null;
+        }
+      });
+
     // Close dropdown on escape key
     document.addEventListener('keydown', this.handleEscapeKey.bind(this));
   }
@@ -277,8 +310,7 @@ export class CurrencySelectorComponent implements OnInit, OnDestroy {
   }
 
   selectCurrency(currency: CurrencyInfo): void {
-    if (currency.code !== this.currentCurrency.code) {
-      console.log('🌍 Currency changed to:', currency.code);
+    if (!this.currentCurrency || currency.code !== this.currentCurrency.code) {
       this.localizationService.setCurrency(currency.code);
     }
     this.closeDropdown();

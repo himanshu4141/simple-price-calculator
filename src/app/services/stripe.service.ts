@@ -166,12 +166,19 @@ export class StripeService {
   /**
    * Create Elements instance with client secret or setup mode
    */
-  async createElements(clientSecret?: string): Promise<void> {
+  async createElements(clientSecret?: string, localizationOptions?: {
+    locale?: string;
+    currency?: string;
+    country?: string;
+  }): Promise<void> {
     if (!this.stripe) {
       throw new Error('Stripe not initialized. Call initializeStripe() first.');
     }
 
-    console.log('🔧 Creating Elements instance...', { hasClientSecret: !!clientSecret });
+    console.log('🔧 Creating Elements instance...', { 
+      hasClientSecret: !!clientSecret,
+      localization: localizationOptions 
+    });
 
     try {
       const elementsOptions: any = {
@@ -181,16 +188,31 @@ export class StripeService {
         paymentMethodConfiguration: 'pmc_0RciuMRIbsQt5S7qO8K3eHRa' // Use your specific payment method configuration
       };
 
+      // Add localization options
+      if (localizationOptions) {
+        if (localizationOptions.locale) {
+          elementsOptions.locale = localizationOptions.locale;
+        }
+        
+        if (localizationOptions.currency) {
+          elementsOptions.currency = localizationOptions.currency.toLowerCase();
+        }
+      }
+
       if (clientSecret) {
         elementsOptions.clientSecret = clientSecret;
       } else {
         // Use setup mode for collecting payment methods without immediate payment
         elementsOptions.mode = 'setup';
-        elementsOptions.currency = 'usd';
+        elementsOptions.currency = localizationOptions?.currency?.toLowerCase() || 'usd';
       }
 
       this.elements = this.stripe.elements(elementsOptions);
-      console.log('✅ Elements instance created successfully with payment method configuration:', 'pmc_0RciuMRIbsQt5S7qO8K3eHRa');
+      console.log('✅ Elements instance created successfully with localization:', {
+        locale: elementsOptions.locale,
+        currency: elementsOptions.currency,
+        paymentMethodConfig: 'pmc_0RciuMRIbsQt5S7qO8K3eHRa'
+      });
     } catch (error) {
       console.error('❌ Error creating Elements:', error);
       throw error;
@@ -245,12 +267,22 @@ export class StripeService {
   /**
    * Create and mount Address Element
    */
-  async createAddressElement(containerId: string, options?: StripeAddressElementOptions): Promise<StripeAddressElement | null> {
+  async createAddressElement(
+    containerId: string, 
+    options?: StripeAddressElementOptions,
+    localizationDefaults?: {
+      country?: string;
+      locale?: string;
+    }
+  ): Promise<StripeAddressElement | null> {
     if (!this.elements) {
       throw new Error('Elements not created. Call createElements() first.');
     }
 
-    console.log('🔧 Creating Address Element...', { containerId });
+    console.log('🔧 Creating Address Element...', { 
+      containerId, 
+      localizationDefaults 
+    });
 
     try {
       // Clean up existing address element
@@ -258,6 +290,11 @@ export class StripeService {
         this.addressElement.unmount();
         this.addressElement.destroy();
       }
+
+      // Determine default country based on localization
+      const defaultCountry = localizationDefaults?.country || 
+                            this.getCountryFromLocale(localizationDefaults?.locale) || 
+                            'US';
 
       const addressElementOptions: StripeAddressElementOptions = {
         mode: 'billing',
@@ -268,6 +305,13 @@ export class StripeService {
         },
         fields: {
           phone: 'auto'
+        },
+        defaultValues: {
+          name: '',
+          address: {
+            country: defaultCountry
+          },
+          ...options?.defaultValues
         },
         ...options
       };
@@ -280,7 +324,7 @@ export class StripeService {
       }
 
       await this.addressElement.mount(`#${containerId}`);
-      console.log('✅ Address Element mounted successfully');
+      console.log('✅ Address Element mounted successfully with default country:', defaultCountry);
       
       return this.addressElement;
     } catch (error) {
@@ -593,5 +637,30 @@ export class StripeService {
       console.error('❌ Error in submitAndCreatePaymentMethod:', error);
       throw error;
     }
+  }
+
+  /**
+   * Helper method to map locale to country code
+   */
+  private getCountryFromLocale(locale?: string): string | null {
+    if (!locale) return null;
+    
+    const localeToCountryMap: Record<string, string> = {
+      'en-US': 'US',
+      'en-CA': 'CA', 
+      'en-GB': 'GB',
+      'en-AU': 'AU',
+      'de-DE': 'DE',
+      'fr-FR': 'FR',
+      'es-ES': 'ES',
+      'it-IT': 'IT',
+      'nl-NL': 'NL',
+      'sv-SE': 'SE',
+      'no-NO': 'NO',
+      'da-DK': 'DK',
+      'fi-FI': 'FI'
+    };
+    
+    return localeToCountryMap[locale] || null;
   }
 }
