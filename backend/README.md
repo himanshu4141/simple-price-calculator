@@ -241,7 +241,7 @@ Create subscriptions with Chargebee for 1-year terms. Rejects 3-year terms with 
   },
   "items": [
     {
-      "itemPriceId": "sign-api-AUD-Yearly",
+      "itemPriceId": "sign-api-AUD-yearly",
       "quantity": 10
     }
   ],
@@ -301,7 +301,7 @@ curl -X POST "http://localhost:8080/api/checkout" \
       "line1": "456 Enterprise Ave", "city": "Sydney",
       "state": "NSW", "postalCode": "2000", "country": "AU"
     },
-    "items": [{"itemPriceId": "sign-api-AUD-Yearly", "quantity": 10}],
+    "items": [{"itemPriceId": "sign-api-AUD-yearly", "quantity": 10}],
     "currency": "AUD", "billingTerm": "1year"
   }'
 
@@ -318,7 +318,7 @@ curl -X POST "http://localhost:8080/api/checkout" \
       "line1": "789 Corporate Blvd", "city": "Toronto",
       "state": "ON", "postalCode": "M5V 3A8", "country": "CA"
     },
-    "items": [{"itemPriceId": "Nitro_PDF_PLUS-CAD-Yearly", "quantity": 25}],
+    "items": [{"itemPriceId": "Nitro_PDF_PLUS-CAD-1_year", "quantity": 25}],
     "currency": "CAD", "billingTerm": "3year"
   }'
 ```
