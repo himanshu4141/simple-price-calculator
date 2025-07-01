@@ -120,10 +120,10 @@ export class PricingPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Buy Now - direct to cart/checkout for 1-year terms
+   * Buy Now - direct to enhanced cart for 1-year terms
    */
   buyNow(family: ProductFamily, planName: string): void {
-    this.router.navigate(['/cart'], {
+    this.router.navigate(['/enhanced-cart'], {
       queryParams: {
         product: family.name,
         plan: planName,

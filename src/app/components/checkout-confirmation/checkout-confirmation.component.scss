@@ -1,0 +1,310 @@
+.checkout-confirmation {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+  .confirmation-header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 2rem 0;
+
+    .header-content {
+      text-align: center;
+      color: white;
+
+      h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+    }
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .loading-container {
+    padding: 4rem 0;
+
+    .loading-spinner {
+      text-align: center;
+      color: white;
+
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem auto;
+      }
+
+      p {
+        font-size: 1.1rem;
+        margin: 0;
+      }
+    }
+  }
+
+  .confirmation-content {
+    padding: 3rem 0;
+
+    .confirmation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 3rem;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+    }
+
+    .order-summary,
+    .customer-info {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+      h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+      }
+    }
+
+    .order-items {
+      margin-bottom: 2rem;
+
+      .order-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &.addon-item {
+          background: rgba(102, 126, 234, 0.05);
+          padding: 1rem;
+          margin: 0.5rem 0;
+          border-radius: 8px;
+          border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .item-info {
+          flex: 1;
+
+          h3 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .plan-name {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+          }
+
+          .item-description {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #888;
+          }
+        }
+
+        .item-price {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #333;
+          min-width: 120px;
+          text-align: right;
+        }
+      }
+    }
+
+    .pricing-breakdown {
+      border-top: 2px solid #eee;
+      padding-top: 1rem;
+
+      .price-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        font-size: 1rem;
+
+        &.discount {
+          color: #e91e63;
+          font-weight: 500;
+        }
+
+        &.total {
+          border-top: 1px solid #eee;
+          margin-top: 0.5rem;
+          padding-top: 1rem;
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: #333;
+        }
+      }
+    }
+
+    .customer-info {
+      .info-section {
+        .info-group {
+          margin-bottom: 2rem;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+          }
+
+          p {
+            margin: 0.5rem 0;
+            color: #666;
+            line-height: 1.5;
+
+            strong {
+              color: #333;
+            }
+          }
+        }
+      }
+    }
+
+    .error-alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      background: #ffebee;
+      border: 1px solid #f44336;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      color: #c62828;
+
+      mat-icon {
+        color: #f44336;
+        margin-top: 0.125rem; // Align with text
+      }
+
+      .error-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+
+        .retry-button {
+          align-self: flex-start;
+          font-size: 0.875rem;
+          
+          mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            color: inherit;
+          }
+        }
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+
+      @media (max-width: 768px) {
+        flex-direction: column;
+        
+        button {
+          width: 100%;
+        }
+      }
+
+      .back-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        border: 2px solid white;
+        color: white;
+        background: transparent;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      }
+
+      .confirm-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+        background: #4caf50;
+
+        &:hover {
+          background: #45a049;
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .button-spinner {
+          display: flex;
+          align-items: center;
+
+          .mini-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

@@ -288,7 +288,7 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
     if (!selection.selectedPlan) return;
 
     const queryParams = this.buildSingleCartQueryParams(familyName, selection);
-    this.router.navigate(['/cart'], { queryParams });
+    this.router.navigate(['/enhanced-cart'], { queryParams });
   }
 
   private buildSingleCartQueryParams(familyName: string, selection: ProductSelection): Record<string, string | number> {
@@ -327,7 +327,7 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
   // Navigate to cart with all configured selections
   addAllToCart(): void {
     const params = this.buildAllCartQueryParams();
-    this.router.navigate(['/cart'], { queryParams: params });
+    this.router.navigate(['/enhanced-cart'], { queryParams: params });
   }
 
   private buildAllCartQueryParams(): Record<string, string | number> {
