@@ -1,29 +1,20 @@
 <div class="cart-page">
-  
-  <!-- Quick Add Confirmation Banner - Fixed Position -->
-  <div *ngIf="showQuickAddConfirmation" class="quick-add-banner">
-    <mat-card class="confirmation-card">
-      <mat-card-content>
-        <div class="confirmation-content">
-          <mat-icon class="success-icon">check_circle</mat-icon>
-          <div class="message">
-            <h3>Plan Added Successfully!</h3>
-            <p>We've added your selected plan with default settings. You can review and modify below.</p>
+  <div class="cart-form">
+    <!-- Buy Now Mode Banner -->
+    <div *ngIf="isBuyNowMode" class="buy-now-banner">
+      <mat-card class="info-card">
+        <mat-card-content>
+          <div class="banner-content">
+            <mat-icon class="cart-icon">shopping_cart</mat-icon>
+            <div class="message">
+              <h3>Ready to Purchase</h3>
+              <p>Review your selection below and proceed to secure checkout.</p>
+            </div>
           </div>
-          <div class="actions">
-            <button mat-raised-button color="primary" (click)="confirmQuickAdd()">
-              Continue to Checkout
-            </button>
-            <button mat-stroked-button (click)="editQuickAdd()">
-              Edit Configuration
-            </button>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-  </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
 
-  <div class="cart-form" [class.has-quick-add-banner]="showQuickAddConfirmation">
     <!-- Calculator Mode Banner -->
     <div *ngIf="isFromCalculator" class="calculator-banner">
       <mat-card class="info-card">

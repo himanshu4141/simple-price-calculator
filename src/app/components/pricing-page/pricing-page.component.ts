@@ -120,16 +120,16 @@ export class PricingPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Quick add to cart navigation - updated to match template call
+   * Buy Now - direct to cart/checkout for 1-year terms
    */
-  quickAddToCart(productFamily: string, planName: string): void {
+  buyNow(family: ProductFamily, planName: string): void {
     this.router.navigate(['/cart'], {
       queryParams: {
-        product: productFamily,
+        product: family.name,
         plan: planName,
         term: this.selectedTerm,
         seats: 1,
-        quickAdd: 'true'
+        buyNow: 'true'
       }
     });
   }
@@ -249,27 +249,6 @@ export class PricingPageComponent implements OnInit, OnDestroy {
       'Nitro Sign Enterprise': 'Built for large organizations'
     };
     return suggestions[planName] || null;
-  }
-
-  /**
-   * Quick add plan to cart
-   */
-  quickAddPlan(family: ProductFamily, planName: string): void {
-    this.quickAddToCart(family.name, planName);
-  }
-
-  /**
-   * Configure plan - update method signature to match template
-   */
-  configurePlan(family: ProductFamily, planName: string): void {
-    this.router.navigate(['/calculator'], {
-      queryParams: {
-        mode: 'configure',
-        product: family.name,
-        plan: planName,
-        term: this.selectedTerm
-      }
-    });
   }
 
   /**

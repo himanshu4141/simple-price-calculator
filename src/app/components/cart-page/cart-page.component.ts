@@ -26,8 +26,7 @@ interface CartState {
   readonly signPackages: number;
   readonly signApiCalls: number;
   readonly term: BillingTerm;
-  readonly isQuickAddMode: boolean;
-  readonly showQuickAddConfirmation: boolean;
+  readonly isBuyNowMode: boolean;
   readonly isFromCalculator: boolean;
 }
 
@@ -50,8 +49,7 @@ export class CartPageComponent implements OnInit, OnDestroy {
   productFamilies: ProductFamily[] = [];
   cartItems: CartItem[] = [];
   totalPrice: number = 0;
-  isQuickAddMode: boolean = false;
-  showQuickAddConfirmation: boolean = false;
+  isBuyNowMode: boolean = false;
   isFromCalculator: boolean = false;
 
   constructor(
@@ -129,11 +127,7 @@ export class CartPageComponent implements OnInit, OnDestroy {
     }
     
     this.isFromCalculator = params['fromCalculator'] === 'true';
-    
-    if (params['quickAdd'] === 'true') {
-      this.isQuickAddMode = true;
-      this.showQuickAddConfirmation = true;
-    }
+    this.isBuyNowMode = params['buyNow'] === 'true';
   }
 
   private parseLegacyParameters(params: any): void {
@@ -328,18 +322,6 @@ export class CartPageComponent implements OnInit, OnDestroy {
       nitrosign_apiCalls: this.signApiCalls || 0,
       term: this.term
     };
-  }
-
-  // Handle quick add confirmation
-  confirmQuickAdd(): void {
-    this.showQuickAddConfirmation = false;
-    // Additional logic for quick add can be added here
-  }
-
-  editQuickAdd(): void {
-    this.isQuickAddMode = false;
-    this.showQuickAddConfirmation = false;
-    // Allow user to modify the quick-added item
   }
 
   getExtraPackages(): number {

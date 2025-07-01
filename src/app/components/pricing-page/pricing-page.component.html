@@ -141,15 +141,11 @@
               <p class="three-year-note">3-year commitments require enterprise consultation</p>
             </div>
             
-            <!-- Standard CTAs for 1-year terms -->
+            <!-- Single Buy Now CTA for 1-year terms -->
             <div *ngIf="selectedTerm === '1year'" class="standard-cta">
-              <button mat-raised-button color="primary" class="configure-plan-btn" (click)="configurePlan(family, plan.name)">
-                <mat-icon>settings</mat-icon>
-                Configure & Add to Cart
-              </button>
-              <button mat-stroked-button color="primary" class="quick-add-btn" (click)="quickAddPlan(family, plan.name)">
-                <mat-icon>add_shopping_cart</mat-icon>
-                Quick Add
+              <button mat-raised-button color="primary" class="buy-now-btn" (click)="buyNow(family, plan.name)">
+                <mat-icon>shopping_cart</mat-icon>
+                Buy Now
               </button>
             </div>
           </div>
