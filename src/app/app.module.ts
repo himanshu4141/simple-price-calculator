@@ -14,6 +14,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialogModule } from '@angular/material/dialog';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
@@ -23,6 +24,7 @@ import { PriceCalculatorComponent } from './components/price-calculator/price-ca
 import { CheckoutPageComponent } from './components/checkout-page/checkout-page.component';
 import { CheckoutPageEnhancedComponent } from './components/checkout-page/checkout-page.enhanced.component';
 import { CurrencySelectorComponent } from './components/currency-selector.component';
+import { SalesContactModalComponent } from './components/sales-contact-modal/sales-contact-modal.component';
 
 const routes: Routes = [
   { path: '', component: PricingPageComponent },
@@ -39,7 +41,8 @@ const routes: Routes = [
     PriceCalculatorComponent,
     CheckoutPageComponent,
     CheckoutPageEnhancedComponent,
-    CurrencySelectorComponent
+    CurrencySelectorComponent,
+    SalesContactModalComponent
   ],
   imports: [
     BrowserModule,
@@ -57,6 +60,7 @@ const routes: Routes = [
     MatSliderModule,
     MatButtonToggleModule,
     MatTooltipModule,
+    MatDialogModule,
     FormsModule,
     ReactiveFormsModule
   ],

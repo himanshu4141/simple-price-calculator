@@ -196,14 +196,26 @@
 
     <!-- Action buttons for regular calculator mode -->
     <div *ngIf="!isConfigureMode && hasValidSelections()" class="calculator-actions">
-      <button mat-raised-button color="primary" (click)="addAllToCart()" class="add-to-cart-btn">
-        <mat-icon>add_shopping_cart</mat-icon>
-        Add to Cart
-      </button>
-      <button mat-stroked-button (click)="resetCalculator()" class="reset-btn">
-        <mat-icon>refresh</mat-icon>
-        Start Over
-      </button>
+      <!-- Show Contact Sales for 3-year terms -->
+      <div *ngIf="selectedTerm === '3year'" class="three-year-cta">
+        <button mat-raised-button color="primary" (click)="openContactSalesModal()" class="contact-sales-btn">
+          <mat-icon>contact_support</mat-icon>
+          Contact Sales
+        </button>
+        <p class="three-year-note">3-year commitments require enterprise consultation</p>
+      </div>
+      
+      <!-- Standard CTAs for 1-year terms -->
+      <div *ngIf="selectedTerm === '1year'" class="standard-cta">
+        <button mat-raised-button color="primary" (click)="addAllToCart()" class="add-to-cart-btn">
+          <mat-icon>add_shopping_cart</mat-icon>
+          Add to Cart
+        </button>
+        <button mat-stroked-button (click)="resetCalculator()" class="reset-btn">
+          <mat-icon>refresh</mat-icon>
+          Start Over
+        </button>
+      </div>
     </div>
   </div>
 </div>

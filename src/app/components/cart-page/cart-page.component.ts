@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
 
@@ -15,6 +16,7 @@ import {
 } from '../../services/pricing.service';
 import { LocalizationService } from '../../services/localization.service';
 import { PackageCalculations, DEFAULT_FREE_PACKAGES_PER_SEAT } from '../../utils/package-calculations.util';
+import { SalesContactModalComponent } from '../sales-contact-modal/sales-contact-modal.component';
 
 interface CartState {
   readonly selectedPdfPlan: string;
@@ -56,7 +58,8 @@ export class CartPageComponent implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly pricingService: PricingService,
-    private readonly localizationService: LocalizationService
+    private readonly localizationService: LocalizationService,
+    private readonly dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -255,8 +258,64 @@ export class CartPageComponent implements OnInit, OnDestroy {
   }
 
   checkout(): void {
+    // For 3-year terms, open contact sales modal instead of proceeding to checkout
+    if (this.term === '3year') {
+      this.openContactSalesModal();
+      return;
+    }
+    
+    // For 1-year terms, proceed to normal checkout
     const queryParams = this.buildCheckoutQueryParams();
     this.router.navigate(['/checkout'], { queryParams });
+  }
+
+  /**
+   * Open contact sales modal for 3-year terms in cart
+   */
+  private openContactSalesModal(): void {
+    // Build product information from cart
+    const selectedProducts: Array<{
+      family: string;
+      plan: string;
+      seats: number;
+      packages?: number;
+      apiCalls?: number;
+    }> = [];
+
+    if (this.selectedPdfPlan) {
+      selectedProducts.push({
+        family: 'Nitro PDF',
+        plan: this.selectedPdfPlan,
+        seats: this.pdfSeats
+      });
+    }
+
+    if (this.selectedSignPlan) {
+      selectedProducts.push({
+        family: 'Nitro Sign',
+        plan: this.selectedSignPlan,
+        seats: this.signSeats,
+        packages: this.signPackages || 0,
+        apiCalls: this.signApiCalls || 0
+      });
+    }
+
+    const dialogRef = this.dialog.open(SalesContactModalComponent, {
+      width: '500px',
+      data: {
+        selectedProducts: selectedProducts,
+        term: this.term,
+        totalPrice: this.totalPrice,
+        source: 'cart'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.submitted) {
+        // Handle successful form submission if needed
+        console.log('Sales contact form submitted from cart:', result);
+      }
+    });
   }
 
   private buildCheckoutQueryParams(): Record<string, string | number> {

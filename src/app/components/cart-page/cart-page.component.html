@@ -190,7 +190,17 @@
       * Prices reflect 3-year commitment discount
     </div>
 
-    <button mat-raised-button color="primary" class="checkout-button" (click)="checkout()">
+    <!-- Different CTAs based on term -->
+    <div *ngIf="term === '3year'" class="three-year-checkout">
+      <button mat-raised-button color="primary" class="contact-sales-button" (click)="checkout()">
+        <mat-icon>contact_support</mat-icon>
+        Contact Sales for 3-Year Terms
+      </button>
+      <p class="three-year-note">3-year commitments require enterprise consultation</p>
+    </div>
+    
+    <button *ngIf="term === '1year'" mat-raised-button color="primary" class="checkout-button" (click)="checkout()">
+      <mat-icon>credit_card</mat-icon>
       Proceed to Checkout
     </button>
   </div>
