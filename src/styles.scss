@@ -49,10 +49,62 @@ button {
 /* Card styles - Updated for Nitro theme */
 .card {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(var(--nitro-black-rgb), 0.1);
-  border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
-  padding: var(--nitro-spacing-lg);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+  border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+  padding: var(--nitro-spacing-xl);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(var(--nitro-black-rgb), 0.12);
+  border-color: rgba(var(--nitro-orange-rgb), 0.3);
+}
+
+/* Button styles - Nitro themed */
+.mat-mdc-raised-button.mat-primary {
+  background: var(--nitro-orange) !important;
+  color: white !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: var(--nitro-spacing-sm) var(--nitro-spacing-lg) !important;
+  transition: all 0.3s ease !important;
+}
+
+.mat-mdc-raised-button.mat-primary:hover {
+  background: var(--nitro-terracotta) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(var(--nitro-orange-rgb), 0.3) !important;
+}
+
+.mat-mdc-raised-button.mat-accent {
+  background: var(--nitro-grape) !important;
+  color: white !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: var(--nitro-spacing-sm) var(--nitro-spacing-lg) !important;
+  transition: all 0.3s ease !important;
+}
+
+.mat-mdc-raised-button.mat-accent:hover {
+  background: var(--nitro-eclipse) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(var(--nitro-grape-rgb), 0.3) !important;
+}
+
+.mat-mdc-stroked-button {
+  border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.3) !important;
+  color: var(--nitro-eclipse) !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+
+.mat-mdc-stroked-button:hover {
+  border-color: var(--nitro-orange) !important;
+  color: var(--nitro-orange) !important;
+  background: rgba(var(--nitro-orange-rgb), 0.1) !important;
 }
 
 /* Tooltip styles */
@@ -97,4 +149,42 @@ button {
   .mdc-slider__thumb-knob {
     border-width: 6px !important;
   }
+}
+
+/* Icon button styles */
+.mat-mdc-icon-button {
+  color: var(--nitro-eclipse) !important;
+  transition: all 0.2s ease !important;
+}
+
+.mat-mdc-icon-button:hover {
+  color: var(--nitro-orange) !important;
+  background: rgba(var(--nitro-orange-rgb), 0.1) !important;
+}
+
+/* Cart specific button overrides */
+.enhanced-cart-page .quantity-control .input-group button:hover:not(:disabled) {
+  background: var(--nitro-orange) !important;
+  color: white !important;
+}
+
+/* Enhanced cart specific button overrides */
+.enhanced-cart-page .upgrade-btn.mat-mdc-raised-button {
+  background-color: var(--nitro-grape) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.enhanced-cart-page .upgrade-btn.mat-mdc-raised-button:hover {
+  background-color: var(--nitro-eclipse) !important;
+}
+
+.enhanced-cart-page .add-btn.mat-mdc-raised-button {
+  background-color: var(--nitro-orange) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.enhanced-cart-page .add-btn.mat-mdc-raised-button:hover {
+  background-color: var(--nitro-terracotta) !important;
 }

@@ -1,0 +1,132 @@
+<div class="checkout-confirmation">
+  <!-- Header -->
+  <div class="confirmation-header">
+    <div class="container">
+      <div class="header-content">
+        <h1>Confirm Your Order</h1>
+        <p class="subtitle">Please review your order details before confirming your purchase</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="container">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Loading order details...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="confirmation-content">
+    <div class="container">
+      <div class="confirmation-grid">
+        
+        <!-- Order Summary -->
+        <div class="order-summary">
+          <h2>Order Summary</h2>
+          
+          <div class="order-items">
+            <div *ngFor="let item of items" class="order-item" [class.addon-item]="item.isAddon">
+              <div class="item-info">
+                <h3>{{ item.productName }}</h3>
+                <p class="plan-name">{{ item.planName }}</p>
+                <p class="item-description">{{ getItemDescription(item) }}</p>
+              </div>
+              <div class="item-price">
+                {{ formatPrice(item.price) }}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Pricing Breakdown -->
+          <div class="pricing-breakdown">
+            <div class="price-row">
+              <span>Subtotal</span>
+              <span>{{ formattedSubtotal }}</span>
+            </div>
+            
+            <div *ngIf="discountAmount > 0" class="price-row discount">
+              <span>Discount ({{ appliedCoupon }})</span>
+              <span>-{{ formattedDiscount }}</span>
+            </div>
+            
+            <div *ngIf="tax > 0" class="price-row">
+              <span>Tax</span>
+              <span>{{ formattedTax }}</span>
+            </div>
+            
+            <div class="price-row total">
+              <span>Total</span>
+              <span>{{ formattedTotal }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="customer-info">
+          <h2>Customer Information</h2>
+          
+          <div *ngIf="customerInfo" class="info-section">
+            <div class="info-group">
+              <h3>Contact Information</h3>
+              <p><strong>Name:</strong> {{ customerName }}</p>
+              <p><strong>Email:</strong> {{ customerInfo.email }}</p>
+              <p *ngIf="customerInfo.company"><strong>Company:</strong> {{ customerInfo.company }}</p>
+            </div>
+            
+            <div class="info-group">
+              <h3>Billing Address</h3>
+              <p>{{ customerAddress }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-alert">
+        <mat-icon>error</mat-icon>
+        <div class="error-content">
+          <span>{{ errorMessage }}</span>
+          <button 
+            *ngIf="retryAttempts < maxRetryAttempts"
+            mat-button 
+            color="primary"
+            class="retry-button"
+            (click)="retryCheckout()"
+            [disabled]="isProcessing">
+            <mat-icon>refresh</mat-icon>
+            Try Again ({{ maxRetryAttempts - retryAttempts }} attempts left)
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button 
+          mat-stroked-button 
+          class="back-button"
+          (click)="goBack()"
+          [disabled]="isProcessing">
+          <mat-icon>arrow_back</mat-icon>
+          Back to Cart
+        </button>
+
+        <button 
+          mat-raised-button 
+          color="primary"
+          class="confirm-button"
+          (click)="confirmOrder()"
+          [disabled]="isProcessing">
+          <mat-icon *ngIf="!isProcessing">check_circle</mat-icon>
+          <div *ngIf="isProcessing" class="button-spinner">
+            <div class="mini-spinner"></div>
+          </div>
+          {{ isProcessing ? 'Processing...' : 'Confirm Order' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

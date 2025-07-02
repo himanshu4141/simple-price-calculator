@@ -254,7 +254,9 @@ case class CheckoutResponse(
   message: String,
   salesContactRequired: Boolean = false,
   paymentIntentId: Option[String] = None,
-  paymentStatus: Option[String] = None
+  paymentStatus: Option[String] = None,
+  portalSessionUrl: Option[String] = None,
+  portalSessionId: Option[String] = None
 )
 
 // Chargebee API response models
@@ -294,6 +296,32 @@ case class ChargebeeSubscription(
   created_at: Option[Long] = None,
   updated_at: Option[Long] = None,
   `object`: String = "subscription"
+)
+
+case class ChargebeePortalSession(
+  id: String,
+  token: String,
+  access_url: String,
+  redirect_url: String,
+  status: String,
+  created_at: Long,
+  expires_at: Long,
+  customer_id: String,
+  `object`: String = "portal_session"
+)
+
+case class ChargebeePortalSessionResponse(
+  portal_session: ChargebeePortalSession
+)
+
+// Portal session request model
+case class PortalSessionRequest(
+  redirect_url: String,
+  customer: PortalSessionCustomer
+)
+
+case class PortalSessionCustomer(
+  id: String
 )
 
 case class ChargebeeCustomerResponse(
@@ -551,6 +579,13 @@ object JsonCodecs {
   
   implicit val chargebeeEstimateEncoder: Encoder[ChargebeeEstimate] = deriveEncoder[ChargebeeEstimate]
   implicit val chargebeeEstimateDecoder: Decoder[ChargebeeEstimate] = deriveDecoder[ChargebeeEstimate]
+  
+  // Chargebee Portal Session models
+  implicit val chargebeePortalSessionEncoder: Encoder[ChargebeePortalSession] = deriveEncoder[ChargebeePortalSession]
+  implicit val chargebeePortalSessionDecoder: Decoder[ChargebeePortalSession] = deriveDecoder[ChargebeePortalSession]
+  
+  implicit val chargebeePortalSessionResponseEncoder: Encoder[ChargebeePortalSessionResponse] = deriveEncoder[ChargebeePortalSessionResponse]
+  implicit val chargebeePortalSessionResponseDecoder: Decoder[ChargebeePortalSessionResponse] = deriveDecoder[ChargebeePortalSessionResponse]
   
   // Avalara models
   implicit val avalaraAddressEncoder: Encoder[AvalaraAddress] = deriveEncoder[AvalaraAddress]

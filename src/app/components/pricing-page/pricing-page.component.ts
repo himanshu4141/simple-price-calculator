@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
 
@@ -11,6 +12,7 @@ import {
   PricingApiResponse
 } from '../../services/pricing.service';
 import { LocalizationService } from '../../services/localization.service';
+import { SalesContactModalComponent } from '../sales-contact-modal/sales-contact-modal.component';
 
 @Component({
   selector: 'app-pricing-page',
@@ -28,7 +30,8 @@ export class PricingPageComponent implements OnInit, OnDestroy {
   constructor(
     private readonly pricingService: PricingService,
     private readonly localizationService: LocalizationService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -117,16 +120,16 @@ export class PricingPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Quick add to cart navigation - updated to match template call
+   * Buy Now - direct to enhanced cart for 1-year terms
    */
-  quickAddToCart(productFamily: string, planName: string): void {
-    this.router.navigate(['/cart'], {
+  buyNow(family: ProductFamily, planName: string): void {
+    this.router.navigate(['/enhanced-cart'], {
       queryParams: {
-        product: productFamily,
+        product: family.name,
         plan: planName,
         term: this.selectedTerm,
         seats: 1,
-        quickAdd: 'true'
+        buyNow: 'true'
       }
     });
   }
@@ -249,22 +252,23 @@ export class PricingPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Quick add plan to cart
+   * Open contact sales modal for 3-year terms
    */
-  quickAddPlan(family: ProductFamily, planName: string): void {
-    this.quickAddToCart(family.name, planName);
-  }
+  openContactSalesModal(family: ProductFamily, planName: string): void {
+    const dialogRef = this.dialog.open(SalesContactModalComponent, {
+      width: '500px',
+      data: {
+        productFamily: family.name,
+        planName: planName,
+        term: this.selectedTerm,
+        source: 'pricing-page'
+      }
+    });
 
-  /**
-   * Configure plan - update method signature to match template
-   */
-  configurePlan(family: ProductFamily, planName: string): void {
-    this.router.navigate(['/calculator'], {
-      queryParams: {
-        mode: 'configure',
-        product: family.name,
-        plan: planName,
-        term: this.selectedTerm
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.submitted) {
+        // Handle successful form submission if needed
+        console.log('Sales contact form submitted:', result);
       }
     });
   }

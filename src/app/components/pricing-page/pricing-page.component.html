@@ -132,14 +132,22 @@
           </div>
 
           <div class="plan-footer">
-            <button mat-raised-button color="primary" class="configure-plan-btn" (click)="configurePlan(family, plan.name)">
-              <mat-icon>settings</mat-icon>
-              Configure & Add to Cart
-            </button>
-            <button mat-stroked-button color="primary" class="quick-add-btn" (click)="quickAddPlan(family, plan.name)">
-              <mat-icon>add_shopping_cart</mat-icon>
-              Quick Add
-            </button>
+            <!-- Show Contact Sales for 3-year terms -->
+            <div *ngIf="selectedTerm === '3year'" class="three-year-cta">
+              <button mat-raised-button color="primary" class="contact-sales-btn" (click)="openContactSalesModal(family, plan.name)">
+                <mat-icon>contact_support</mat-icon>
+                Contact Sales
+              </button>
+              <p class="three-year-note">3-year commitments require enterprise consultation</p>
+            </div>
+            
+            <!-- Single Buy Now CTA for 1-year terms -->
+            <div *ngIf="selectedTerm === '1year'" class="standard-cta">
+              <button mat-raised-button color="primary" class="buy-now-btn" (click)="buyNow(family, plan.name)">
+                <mat-icon>shopping_cart</mat-icon>
+                Buy Now
+              </button>
+            </div>
           </div>
         </div>
       </div>

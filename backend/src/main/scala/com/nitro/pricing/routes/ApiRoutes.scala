@@ -100,6 +100,11 @@ class ApiRoutes(
         complete(StatusCodes.OK)
       }
     } ~
+    path("create-portal-session") {
+      options {
+        complete(StatusCodes.OK)
+      }
+    } ~
     pathPrefix("chargebee") {
       options {
         complete(StatusCodes.OK)
@@ -291,6 +296,62 @@ class ApiRoutes(
                 "message" -> Json.fromString(ex.getMessage)
               )
               complete(StatusCodes.InternalServerError, errorResponse)
+          }
+        }
+      }
+    } ~
+    path("create-portal-session") {
+      post {
+        entity(as[String]) { body =>
+          import io.circe.parser._
+          decode[Json](body) match {
+            case Right(json) =>
+              json.hcursor.get[String]("customerId") match {
+                case Right(customerId) =>
+                  logger.info(s"Portal session request received for customer: $customerId")
+                  
+                  onComplete(chargebeeClient.createPortalSession(customerId)) {
+                    case Success(Left(error)) =>
+                      logger.error(s"Portal session creation failed for customer $customerId: $error")
+                      val errorResponse = Json.obj(
+                        "success" -> Json.fromBoolean(false),
+                        "error" -> Json.fromString(error)
+                      )
+                      complete(StatusCodes.BadRequest, errorResponse)
+                      
+                    case Success(Right(portalSession)) =>
+                      logger.info(s"Portal session created successfully for customer $customerId: ${portalSession.id}")
+                      logger.info(s"🔗 Fresh portal session URL: ${portalSession.access_url}")
+                      val successResponse = Json.obj(
+                        "success" -> Json.fromBoolean(true),
+                        "portalSessionUrl" -> Json.fromString(portalSession.access_url),
+                        "portalSessionId" -> Json.fromString(portalSession.id)
+                      )
+                      complete(StatusCodes.OK, successResponse)
+                      
+                    case Failure(ex) =>
+                      logger.error(s"Portal session creation failed for customer $customerId", ex)
+                      val errorResponse = Json.obj(
+                        "success" -> Json.fromBoolean(false),
+                        "error" -> Json.fromString(ex.getMessage)
+                      )
+                      complete(StatusCodes.InternalServerError, errorResponse)
+                  }
+                  
+                case Left(_) =>
+                  val errorResponse = Json.obj(
+                    "success" -> Json.fromBoolean(false),
+                    "error" -> Json.fromString("Missing customerId in request body")
+                  )
+                  complete(StatusCodes.BadRequest, errorResponse)
+              }
+              
+            case Left(_) =>
+              val errorResponse = Json.obj(
+                "success" -> Json.fromBoolean(false),
+                "error" -> Json.fromString("Invalid JSON in request body")
+              )
+              complete(StatusCodes.BadRequest, errorResponse)
           }
         }
       }
