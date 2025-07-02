@@ -44,7 +44,9 @@ class CheckoutService(
         message = "3-year subscriptions require sales assistance. Please contact our sales team for a custom quote.",
         salesContactRequired = true,
         paymentIntentId = None,
-        paymentStatus = None
+        paymentStatus = None,
+        portalSessionUrl = None,
+        portalSessionId = None
       ))
     }
 
@@ -76,7 +78,9 @@ class CheckoutService(
             message = s"Customer creation failed: $error",
             salesContactRequired = false,
             paymentIntentId = None,
-            paymentStatus = None
+            paymentStatus = None,
+            portalSessionUrl = None,
+            portalSessionId = None
           ))
       }
     } yield checkoutResult
@@ -93,32 +97,29 @@ class CheckoutService(
     
     logger.info(s"Creating subscription with ${allItems.length} items: base container + ${requestedItems.length} product items")
     
-    chargebeeClient.createSubscription(customerId, allItems).map {
-      case Right(subscription) =>
-        logger.info(s"✅ Checkout completed successfully - Customer: $customerId, Subscription: ${subscription.id}")
-        CheckoutResponse(
-          success = true,
-          customerId = customerId,
-          subscriptionId = Some(subscription.id),
-          hostedPageUrl = None, // Could be added later for hosted payment pages
-          message = "Subscription created successfully",
-          salesContactRequired = false,
-          paymentIntentId = None,
-          paymentStatus = Some("completed")
-        )
-      case Left(error) =>
-        logger.error(s"❌ Subscription creation failed for customer $customerId: $error")
-        CheckoutResponse(
-          success = false,
-          customerId = customerId,
-          subscriptionId = None,
-          hostedPageUrl = None,
-          message = s"Subscription creation failed: $error",
-          salesContactRequired = false,
-          paymentIntentId = None,
-          paymentStatus = Some("failed")
-        )
-    }
+    for {
+      subscriptionResult <- chargebeeClient.createSubscription(customerId, allItems)
+      finalResponse <- subscriptionResult match {
+        case Right(subscription) =>
+          logger.info(s"✅ Subscription created successfully - Customer: $customerId, Subscription: ${subscription.id}")
+          // Create portal session for the customer
+          createPortalSessionForResponse(customerId, subscription.id, "Subscription created successfully")
+        case Left(error) =>
+          logger.error(s"❌ Subscription creation failed for customer $customerId: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Subscription creation failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = None,
+            paymentStatus = Some("failed"),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
   }
 
   private def processSubscriptionWithPayment(
@@ -160,32 +161,28 @@ class CheckoutService(
           logger.error(s"❌ Failed to create PaymentIntent: $error")
           Future.successful(Left(s"Failed to create PaymentIntent: $error"))
       }
-    } yield subscriptionResult match {
-      case Right(subscription) =>
-        logger.info(s"✅ Subscription with payment completed successfully - Customer: $customerId, Subscription: ${subscription.id}")
-        CheckoutResponse(
-          success = true,
-          customerId = customerId,
-          subscriptionId = Some(subscription.id),
-          hostedPageUrl = None,
-          message = "Subscription created and payment processed successfully",
-          salesContactRequired = false,
-          paymentIntentId = None,
-          paymentStatus = Some("completed")
-        )
-      case Left(error) =>
-        logger.error(s"❌ Subscription with payment failed for customer $customerId: $error")
-        CheckoutResponse(
-          success = false,
-          customerId = customerId,
-          subscriptionId = None,
-          hostedPageUrl = None,
-          message = s"Payment processing failed: $error",
-          salesContactRequired = false,
-          paymentIntentId = None,
-          paymentStatus = Some("failed")
-        )
-    }
+      
+      // Step 3: Create portal session for successful subscriptions
+      finalResponse <- subscriptionResult match {
+        case Right(subscription) =>
+          logger.info(s"✅ Subscription with payment completed successfully - Customer: $customerId, Subscription: ${subscription.id}")
+          createPortalSessionForResponse(customerId, subscription.id, "Subscription created and payment processed successfully")
+        case Left(error) =>
+          logger.error(s"❌ Subscription with payment failed for customer $customerId: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Payment processing failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = None,
+            paymentStatus = Some("failed"),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
   }
 
   private def calculateTotalAmount(
@@ -213,6 +210,48 @@ class CheckoutService(
         val fallbackCents = 18290L // €182.90 - the amount Chargebee expects
         logger.warn(s"Using fallback amount: $fallbackCents cents ($${fallbackCents / 100.0}) - THIS SHOULD BE FIXED")
         fallbackCents
+    }
+  }
+
+  /**
+   * Helper method to create a portal session and return a complete CheckoutResponse
+   */
+  private def createPortalSessionForResponse(
+    customerId: String, 
+    subscriptionId: String, 
+    message: String
+  ): Future[CheckoutResponse] = {
+    chargebeeClient.createPortalSession(customerId).map {
+      case Right(portalSession) =>
+        logger.info(s"✅ Portal session created successfully for customer $customerId: ${portalSession.id}")
+        logger.info(s"🔗 Generated portal session URL: ${portalSession.access_url}")
+        CheckoutResponse(
+          success = true,
+          customerId = customerId,
+          subscriptionId = Some(subscriptionId),
+          hostedPageUrl = None,
+          message = message,
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("completed"),
+          portalSessionUrl = Some(portalSession.access_url),
+          portalSessionId = Some(portalSession.id)
+        )
+      case Left(error) =>
+        logger.warn(s"⚠️ Portal session creation failed for customer $customerId: $error")
+        // Don't fail the entire checkout - subscription was successful
+        CheckoutResponse(
+          success = true,
+          customerId = customerId,
+          subscriptionId = Some(subscriptionId),
+          hostedPageUrl = None,
+          message = s"$message (Portal session creation failed: $error)",
+          salesContactRequired = false,
+          paymentIntentId = None,
+          paymentStatus = Some("completed"),
+          portalSessionUrl = None,
+          portalSessionId = None
+        )
     }
   }
 }

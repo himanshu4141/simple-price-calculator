@@ -151,25 +151,38 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
       sessionStorage.removeItem('checkoutOrderData');
       sessionStorage.removeItem('checkoutPaymentData');
       
+      // Log portal session data for debugging
+      console.log('🔍 Checkout result portal data:');
+      console.log('  - portalSessionUrl:', checkoutResult.portalSessionUrl);
+      console.log('  - portalUrl (fallback):', checkoutResult.portalUrl);
+      console.log('  - portalSessionId:', checkoutResult.portalSessionId);
+      
+      const orderData = {
+        items: this.items,
+        customerInfo: this.customerInfo,
+        pricing: {
+          subtotal: this.subtotal,
+          tax: this.tax,
+          total: this.total,
+          discountAmount: this.discountAmount,
+          appliedCoupon: this.appliedCoupon
+        },
+        confirmationNumber: checkoutResult.confirmationNumber,
+        orderDate: new Date().toISOString(),
+        subscriptionId: checkoutResult.subscriptionId,
+        customerId: checkoutResult.customerId,
+        portalSessionUrl: checkoutResult.portalSessionUrl || checkoutResult.portalUrl,
+        portalSessionId: checkoutResult.portalSessionId
+      };
+      
+      console.log('🔍 Order data being sent to success page:');
+      console.log('  - portalSessionUrl:', orderData.portalSessionUrl);
+      console.log('  - portalSessionId:', orderData.portalSessionId);
+      
       // Navigate to success page with real order data
       this.router.navigate(['/checkout-success'], {
         state: { 
-          orderData: {
-            items: this.items,
-            customerInfo: this.customerInfo,
-            pricing: {
-              subtotal: this.subtotal,
-              tax: this.tax,
-              total: this.total,
-              discountAmount: this.discountAmount,
-              appliedCoupon: this.appliedCoupon
-            },
-            confirmationNumber: checkoutResult.confirmationNumber,
-            orderDate: new Date().toISOString(),
-            subscriptionId: checkoutResult.subscriptionId,
-            chargebeePortalUrl: checkoutResult.portalUrl,
-            invoiceUrl: checkoutResult.invoiceUrl
-          }
+          orderData: orderData
         }
       });
       
@@ -285,16 +298,30 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
       // Use the existing backend checkout endpoint (same as old checkout)
       const response = await this.httpClient.post<any>(`${environment.apiUrl}/checkout`, checkoutRequest).toPromise();
 
+      console.log('🔍 Backend response received:', response);
+      console.log('🔍 Portal session data in response:');
+      console.log('  - response.portalSessionUrl:', response.portalSessionUrl);
+      console.log('  - response.chargebeePortalUrl:', response.chargebeePortalUrl);
+      console.log('  - response.portalUrl:', response.portalUrl);
+      console.log('  - response.portalSessionId:', response.portalSessionId);
+
       if (!response.success) {
         throw new Error(response.error || response.message || 'Checkout processing failed');
       }
 
-      return {
+      const result = {
         confirmationNumber: response.confirmationNumber || this.generateConfirmationNumber(),
         subscriptionId: response.subscriptionId,
-        portalUrl: response.chargebeePortalUrl || response.portalUrl,
-        invoiceUrl: response.invoiceUrl
+        customerId: response.customerId,
+        portalSessionUrl: response.portalSessionUrl || response.chargebeePortalUrl || response.portalUrl,
+        portalSessionId: response.portalSessionId
       };
+      
+      console.log('🔍 Processed result being returned:');
+      console.log('  - portalSessionUrl:', result.portalSessionUrl);
+      console.log('  - portalSessionId:', result.portalSessionId);
+
+      return result;
     } catch (error: any) {
       console.error('❌ Backend checkout failed:', error);
       throw new Error(error.error?.message || 'Failed to process payment. Please try again.');

@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { LocalizationService } from '../../services/localization.service';
+import { environment } from '../../../environments/environment';
 
 interface SuccessOrderData {
   items: Array<{
@@ -37,8 +39,9 @@ interface SuccessOrderData {
   confirmationNumber: string;
   orderDate: string;
   subscriptionId?: string;
-  chargebeePortalUrl?: string;
-  invoiceUrl?: string;
+  customerId?: string;
+  portalSessionUrl?: string;
+  portalSessionId?: string;
 }
 
 @Component({
@@ -52,7 +55,8 @@ export class CheckoutSuccessComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private localizationService: LocalizationService
+    private localizationService: LocalizationService,
+    private httpClient: HttpClient
   ) {
     // Get order data from router state
     const navigation = this.router.getCurrentNavigation();
@@ -78,37 +82,46 @@ export class CheckoutSuccessComponent implements OnInit {
     this.showDetails = !this.showDetails;
   }
 
-  goToPortal(): void {
-    if (this.orderData?.chargebeePortalUrl) {
-      window.open(this.orderData.chargebeePortalUrl, '_blank');
-    } else {
-      console.warn('⚠️ No portal URL available');
+  async goToPortal(): Promise<void> {
+    console.log('🔗 goToPortal() called');
+    console.log('📋 Customer ID:', this.orderData?.customerId);
+    
+    if (!this.orderData?.customerId) {
+      console.warn('⚠️ No customer ID available for portal session');
+      alert('Unable to access customer portal. Customer ID not found.');
+      return;
+    }
+
+    try {
+      console.log('🔄 Creating fresh portal session for customer:', this.orderData.customerId);
+      
+      // Create a fresh portal session each time (since they're single-use)
+      const response = await this.httpClient.post<any>(`${environment.apiUrl}/create-portal-session`, {
+        customerId: this.orderData.customerId
+      }).toPromise();
+
+      if (response.success && response.portalSessionUrl) {
+        console.log('✅ Fresh portal session created:', response.portalSessionUrl);
+        window.open(response.portalSessionUrl, '_blank');
+      } else {
+        console.error('❌ Failed to create portal session:', response);
+        alert('Unable to access customer portal. Please try again or contact support.');
+      }
+    } catch (error) {
+      console.error('❌ Error creating portal session:', error);
+      
+      // Fallback: try the stored URL if available
+      if (this.orderData?.portalSessionUrl) {
+        console.log('🔄 Falling back to stored portal URL:', this.orderData.portalSessionUrl);
+        window.open(this.orderData.portalSessionUrl, '_blank');
+      } else {
+        alert('Unable to access customer portal. Please contact support.');
+      }
     }
   }
 
   startNewOrder(): void {
     this.router.navigate(['/']);
-  }
-
-  downloadInvoice(): void {
-    if (this.orderData?.invoiceUrl) {
-      window.open(this.orderData.invoiceUrl, '_blank');
-    } else {
-      console.warn('⚠️ No invoice URL available');
-      // Fallback: try to generate invoice download link
-      this.generateInvoiceDownload();
-    }
-  }
-
-  private generateInvoiceDownload(): void {
-    // In a real implementation, this would call your backend to generate invoice
-    console.log('📄 Generating invoice download for confirmation:', this.orderData?.confirmationNumber);
-    
-    // Simulate invoice generation
-    if (this.orderData?.subscriptionId) {
-      const invoiceUrl = `https://nitro-software.chargebeeportal.com/portal/v2/invoices/${this.orderData.subscriptionId}`;
-      window.open(invoiceUrl, '_blank');
-    }
   }
 
   // Formatting helpers
@@ -163,8 +176,8 @@ export class CheckoutSuccessComponent implements OnInit {
     const steps = [
       'Check your email for a confirmation message with your subscription details',
       'Download and install your software from the links provided in the email',
-      'Use your account credentials to access your new subscription',
-      'Visit the customer portal to manage your subscription and billing'
+      'Use the "Manage Subscription" button below to access your customer portal',
+      'In the portal, you can update billing info, change plans, and view invoices'
     ];
 
     return steps;

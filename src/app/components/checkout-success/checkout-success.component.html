@@ -47,21 +47,13 @@
               color="primary"
               class="portal-button"
               (click)="goToPortal()"
-              *ngIf="orderData?.chargebeePortalUrl">
-              <mat-icon>open_in_new</mat-icon>
+              *ngIf="orderData?.portalSessionUrl">
+              <mat-icon>settings</mat-icon>
               Manage Subscription
             </button>
             
-            <button 
-              mat-stroked-button
-              class="invoice-button"
-              (click)="downloadInvoice()">
-              <mat-icon>download</mat-icon>
-              Download Invoice
-            </button>
-            
             <!-- Show message if portal URL is not available -->
-            <div *ngIf="!orderData?.chargebeePortalUrl" class="portal-message">
+            <div *ngIf="!orderData?.portalSessionUrl" class="portal-message">
               <mat-icon>info</mat-icon>
               <span>You'll receive an email with subscription management links shortly.</span>
             </div>
