@@ -85,6 +85,8 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
     // Load order data from session storage or route state
     const orderData = this.getOrderDataFromStorage();
     
+    console.log('🔍 Debug: Raw order data from sessionStorage:', orderData);
+    
     if (!orderData) {
       console.error('❌ No order data found, redirecting to cart');
       this.router.navigate(['/enhanced-cart']);
@@ -98,6 +100,8 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
     this.total = orderData.total || 0;
     this.discountAmount = orderData.discountAmount || 0;
     this.appliedCoupon = orderData.appliedCoupon || '';
+    
+    console.log('🔍 Debug: Assigned values - Tax:', this.tax, 'Subtotal:', this.subtotal, 'Total:', this.total);
     
     this.isLoading = false;
     
@@ -119,8 +123,12 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
 
   goBack(): void {
     // Navigate back to enhanced cart with current order data preserved
+    // Keep the checkout data in sessionStorage so cart can restore state
     this.router.navigate(['/enhanced-cart'], { 
-      queryParams: { step: 'cart' }
+      queryParams: { 
+        step: 'cart',
+        returnFromConfirmation: 'true'
+      }
     });
   }
 
@@ -138,6 +146,10 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
       
       // Reset retry attempts on success
       this.retryAttempts = 0;
+      
+      // Clear checkout data on successful order
+      sessionStorage.removeItem('checkoutOrderData');
+      sessionStorage.removeItem('checkoutPaymentData');
       
       // Navigate to success page with real order data
       this.router.navigate(['/checkout-success'], {
@@ -488,38 +500,13 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
     }
   }
 
-  async retryCheckout(): Promise<void> {
+  retryCheckout(): void {
     if (this.retryAttempts >= this.maxRetryAttempts) {
-      this.errorMessage = 'Maximum retry attempts reached. Please refresh the page and try again.';
       return;
     }
     
     this.retryAttempts++;
     this.errorMessage = '';
-    
-    try {
-      console.log(`🔄 Retrying checkout (attempt ${this.retryAttempts}/${this.maxRetryAttempts})...`);
-      
-      // Clear any stored payment data to force re-creation
-      try {
-        sessionStorage.removeItem('checkoutPaymentData');
-        console.log('🗑️ Cleared stored payment data for retry');
-      } catch (error) {
-        console.warn('⚠️ Could not clear stored payment data:', error);
-      }
-      
-      // Try to refresh the address element if it's causing issues
-      if (this.errorMessage.includes('address') || this.errorMessage.includes('payment form')) {
-        console.log('📍 Refreshing address element before retry...');
-        await this.stripeService.refreshAddressElement('address-element');
-        // Small delay to ensure element is ready
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      await this.confirmOrder();
-    } catch (error) {
-      console.error('❌ Retry failed:', error);
-      this.errorMessage = `Retry failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
+    this.confirmOrder();
   }
 }

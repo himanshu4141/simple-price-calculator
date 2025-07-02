@@ -1,141 +1,160 @@
+/* Checkout Confirmation - Nitro Themed */
+
 .checkout-confirmation {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--nitro-silver);
+  font-family: "DM Sans", sans-serif;
 
   .confirmation-header {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 2rem 0;
+    background: linear-gradient(135deg, var(--nitro-orange) 0%, var(--nitro-terracotta) 100%);
+    padding: var(--nitro-spacing-3xl) 0;
 
     .header-content {
       text-align: center;
       color: white;
 
       h1 {
-        margin: 0 0 0.5rem 0;
-        font-size: 2.5rem;
+        margin: 0 0 var(--nitro-spacing-sm) 0;
+        font-family: "DM Serif Text", serif;
+        font-size: clamp(2rem, 5vw, 3rem);
         font-weight: 700;
+        line-height: 1.2;
       }
 
       .subtitle {
         margin: 0;
-        font-size: 1.1rem;
+        font-size: 1.125rem;
         opacity: 0.9;
       }
     }
   }
 
   .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0 var(--nitro-spacing-xl);
   }
 
   .loading-container {
-    padding: 4rem 0;
+    padding: var(--nitro-spacing-3xl) 0;
 
     .loading-spinner {
       text-align: center;
-      color: white;
+      background: white;
+      border-radius: 16px;
+      padding: var(--nitro-spacing-3xl);
+      box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+      border: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
 
       .spinner {
         width: 50px;
         height: 50px;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top: 4px solid white;
+        border: 4px solid var(--nitro-mist);
+        border-top: 4px solid var(--nitro-orange);
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin: 0 auto 1rem auto;
+        margin: 0 auto var(--nitro-spacing-md) auto;
       }
 
       p {
-        font-size: 1.1rem;
+        font-size: 1.125rem;
         margin: 0;
+        color: var(--nitro-eclipse);
       }
     }
   }
 
   .confirmation-content {
-    padding: 3rem 0;
+    padding: var(--nitro-spacing-3xl) 0;
 
     .confirmation-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 3rem;
-      margin-bottom: 3rem;
+      gap: var(--nitro-spacing-3xl);
+      margin-bottom: var(--nitro-spacing-3xl);
 
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
-        gap: 2rem;
+        gap: var(--nitro-spacing-xl);
       }
     }
 
     .order-summary,
     .customer-info {
       background: white;
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      padding: var(--nitro-spacing-xl);
+      box-shadow: 0 4px 16px rgba(var(--nitro-black-rgb), 0.08);
+      border: 2px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(var(--nitro-black-rgb), 0.12);
+        border-color: rgba(var(--nitro-orange-rgb), 0.3);
+      }
 
       h2 {
-        margin: 0 0 1.5rem 0;
+        margin: 0 0 var(--nitro-spacing-lg) 0;
+        font-family: "DM Serif Text", serif;
         font-size: 1.5rem;
         font-weight: 600;
-        color: #333;
+        color: var(--nitro-black);
       }
     }
 
     .order-items {
-      margin-bottom: 2rem;
+      margin-bottom: var(--nitro-spacing-xl);
 
       .order-item {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        padding: 1rem 0;
-        border-bottom: 1px solid #eee;
+        padding: var(--nitro-spacing-md) 0;
+        border-bottom: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
 
         &:last-child {
           border-bottom: none;
         }
 
         &.addon-item {
-          background: rgba(102, 126, 234, 0.05);
-          padding: 1rem;
-          margin: 0.5rem 0;
+          background: rgba(var(--nitro-orange-rgb), 0.05);
+          padding: var(--nitro-spacing-md);
+          margin: var(--nitro-spacing-sm) 0;
           border-radius: 8px;
-          border: 1px solid rgba(102, 126, 234, 0.2);
+          border: 1px solid rgba(var(--nitro-orange-rgb), 0.2);
         }
 
         .item-info {
           flex: 1;
 
           h3 {
-            margin: 0 0 0.25rem 0;
-            font-size: 1.1rem;
+            margin: 0 0 var(--nitro-spacing-xs) 0;
+            font-size: 1.125rem;
             font-weight: 600;
-            color: #333;
+            color: var(--nitro-black);
+            font-family: "DM Serif Text", serif;
           }
 
           .plan-name {
-            margin: 0 0 0.5rem 0;
-            font-size: 0.9rem;
-            color: #666;
+            margin: 0 0 var(--nitro-spacing-sm) 0;
+            font-size: 0.875rem;
+            color: var(--nitro-eclipse);
             font-weight: 500;
           }
 
           .item-description {
             margin: 0;
-            font-size: 0.9rem;
-            color: #888;
+            font-size: 0.875rem;
+            color: var(--nitro-eclipse);
+            opacity: 0.8;
           }
         }
 
         .item-price {
-          font-size: 1.1rem;
+          font-size: 1.125rem;
           font-weight: 600;
-          color: #333;
+          color: var(--nitro-black);
           min-width: 120px;
           text-align: right;
         }
@@ -143,28 +162,31 @@
     }
 
     .pricing-breakdown {
-      border-top: 2px solid #eee;
-      padding-top: 1rem;
+      border-top: 2px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+      padding-top: var(--nitro-spacing-md);
 
       .price-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.5rem 0;
+        padding: var(--nitro-spacing-sm) 0;
         font-size: 1rem;
 
         &.discount {
-          color: #e91e63;
+          color: var(--nitro-pine);
           font-weight: 500;
         }
 
         &.total {
-          border-top: 1px solid #eee;
-          margin-top: 0.5rem;
-          padding-top: 1rem;
-          font-size: 1.2rem;
+          border-top: 1px solid rgba(var(--nitro-eclipse-rgb), 0.1);
+          margin-top: var(--nitro-spacing-sm);
+          padding-top: var(--nitro-spacing-md);
+          font-size: 1.25rem;
           font-weight: 700;
-          color: #333;
+          color: var(--nitro-black);
+          background: linear-gradient(135deg, var(--nitro-sky) 0%, rgba(var(--nitro-mist), 0.5) 100%);
+          padding: var(--nitro-spacing-md);
+          border-radius: 8px;
         }
       }
     }
@@ -172,15 +194,15 @@
     .customer-info {
       .info-section {
         .info-group {
-          margin-bottom: 2rem;
+          margin-bottom: var(--nitro-spacing-xl);
 
           &:last-child {
             margin-bottom: 0;
           }
 
           h3 {
-            margin: 0 0 1rem 0;
-            font-size: 1.1rem;
+            margin: 0 0 var(--nitro-spacing-md) 0;
+            font-size: 1.125rem;
             font-weight: 600;
             color: #333;
           }
@@ -239,6 +261,8 @@
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
+      margin-top: var(--nitro-spacing-2xl);
+      padding: var(--nitro-spacing-xl) 0;
 
       @media (max-width: 768px) {
         flex-direction: column;
@@ -254,12 +278,15 @@
         gap: 0.5rem;
         padding: 0.75rem 2rem;
         font-size: 1rem;
-        border: 2px solid white;
-        color: white;
+        border: 2px solid var(--nitro-orange);
+        color: var(--nitro-orange);
         background: transparent;
+        border-radius: 8px;
+        transition: all 0.3s ease;
 
-        &:hover {
-          background: rgba(255, 255, 255, 0.1);
+        &:hover:not(:disabled) {
+          background: var(--nitro-orange);
+          color: white;
         }
 
         &:disabled {
@@ -275,10 +302,16 @@
         padding: 0.75rem 2rem;
         font-size: 1rem;
         font-weight: 600;
-        background: #4caf50;
+        background: linear-gradient(135deg, var(--nitro-orange) 0%, var(--nitro-terracotta) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        transition: all 0.3s ease;
 
-        &:hover {
-          background: #45a049;
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, var(--nitro-terracotta) 0%, var(--nitro-orange) 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(var(--nitro-orange-rgb), 0.3);
         }
 
         &:disabled {

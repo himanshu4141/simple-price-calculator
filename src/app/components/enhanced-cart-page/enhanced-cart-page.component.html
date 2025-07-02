@@ -24,12 +24,14 @@
     
     <!-- Cart Header -->
     <div class="cart-header">
-      <h1 class="nitro-heading">Your Cart</h1>
-      <div class="cart-navigation">
-        <button mat-stroked-button (click)="returnToPricing()" class="back-btn">
-          <mat-icon>arrow_back</mat-icon>
-          Continue Shopping
-        </button>
+      <div class="header-content">
+        <h1 class="nitro-heading">Your Cart</h1>
+        <div class="cart-navigation">
+          <button mat-stroked-button (click)="returnToPricing()" class="back-btn">
+            <mat-icon>arrow_back</mat-icon>
+            Continue Shopping
+          </button>
+        </div>
       </div>
     </div>
 
@@ -41,7 +43,7 @@
             <mat-icon class="cart-icon">shopping_cart</mat-icon>
             <div class="message">
               <h3>Ready to Purchase</h3>
-              <p>Review your selection, add cross-sells if needed, and complete your purchase.</p>
+              <p>Review your selection, add any recommended products, and complete your purchase.</p>
             </div>
           </div>
         </mat-card-content>
@@ -56,27 +58,28 @@
         
         <!-- Cart Items Section -->
         <div class="cart-items-section">
-          <mat-card class="cart-items-card">
-            <mat-card-header>
-              <mat-card-title>Your Items</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <div *ngFor="let item of cartItems" class="cart-item">
+          <div class="cart-items-card">
+            <h2>Your Items</h2>
+            <div class="cart-items-content">
+              <div *ngFor="let item of cartItems" class="cart-item compact">
                 <div class="item-header">
                   <div class="item-info">
                     <h4 class="product-name">{{ item.productFamily }}</h4>
                     <p class="plan-name">{{ item.planName }}</p>
-                    <span class="term-badge">{{ item.term === '1year' ? '1 Year' : '3 Years' }}</span>
                   </div>
-                  <button mat-icon-button (click)="removeCartItem(item.id)" class="remove-btn">
-                    <mat-icon>close</mat-icon>
-                  </button>
+                  <div class="item-price-header">
+                    <span class="annual-price">{{ formatPrice(item.price) }}/year</span>
+                    <button mat-icon-button (click)="removeCartItem(item.id)" class="remove-btn">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
                 </div>
 
-                <div class="item-details">
+                <div class="item-details compact-details">
                   <!-- Seats -->
                   <div class="quantity-control">
                     <label>Seats</label>
+                    <small class="price-hint">{{ formatPrice(getSeatPrice(item)) }} per seat</small>
                     <div class="input-group">
                       <button mat-icon-button 
                               (click)="updateCartItemQuantity(item.id, 'seats', item.seats - 1)"
@@ -98,6 +101,7 @@
                   <!-- Packages (Sign plans only) -->
                   <div *ngIf="item.canModifyPackages" class="quantity-control">
                     <label>Additional Packages</label>
+                    <small class="price-hint">{{ formatPrice(getPackagePrice(item.planName)) }} each</small>
                     <div class="input-group">
                       <button mat-icon-button 
                               (click)="updateCartItemQuantity(item.id, 'packages', (item.packages || 0) - 1)"
@@ -114,12 +118,12 @@
                         <mat-icon>add</mat-icon>
                       </button>
                     </div>
-                    <small class="price-hint">{{ formatPrice(getPackagePrice(item.planName)) }} each</small>
                   </div>
 
                   <!-- API Calls (Sign Enterprise only) -->
                   <div *ngIf="item.canModifyApiCalls" class="quantity-control">
-                    <label>API Calls</label>
+                    <label>Additional API Calls</label>
+                    <small class="price-hint">{{ formatPrice(getApiPrice(item.planName)) }} per call</small>
                     <div class="input-group">
                       <button mat-icon-button 
                               (click)="updateCartItemQuantity(item.id, 'apiCalls', (item.apiCalls || 0) - 100)"
@@ -137,14 +141,36 @@
                         <mat-icon>add</mat-icon>
                       </button>
                     </div>
-                    <small class="price-hint">{{ formatPrice(getApiPrice(item.planName)) }} per call</small>
                   </div>
                 </div>
+              </div>
 
-                <div class="item-footer">
-                  <div class="item-price">
-                    {{ formatPrice(item.price) }}/year
-                  </div>
+              <!-- Cart Total Summary -->
+              <div *ngIf="cartItems.length > 0" class="cart-total-summary">
+                <div class="total-row">
+                  <span class="total-label">Subtotal ({{ cartItems.length }} items)</span>
+                  <span class="total-price">{{ formatPrice(subtotal) }}/year</span>
+                </div>
+                <div *ngIf="taxAmount > 0" class="total-row tax-row">
+                  <span class="total-label">
+                    <mat-icon inline="true">account_balance</mat-icon>
+                    Estimated Tax
+                  </span>
+                  <span class="total-price">{{ formatPrice(taxAmount) }}</span>
+                </div>
+                <div *ngIf="taxAmount === 0 && cartItems.length > 0" class="total-row tax-row tax-pending">
+                  <span class="total-label">
+                    <mat-icon inline="true">account_balance</mat-icon>
+                    Tax (calculated at checkout)
+                  </span>
+                  <span class="total-price">{{ formatPrice(0) }}</span>
+                </div>
+                <div class="total-row final-total">
+                  <span class="total-label">
+                    <mat-icon inline="true">receipt</mat-icon>
+                    Annual Total
+                  </span>
+                  <span class="total-price">{{ formatPrice(finalTotal) }}/year</span>
                 </div>
               </div>
 
@@ -156,8 +182,8 @@
                   Browse Plans
                 </button>
               </div>
-            </mat-card-content>
-          </mat-card>
+            </div>
+          </div>
         </div>
 
         <!-- Coupon Section -->

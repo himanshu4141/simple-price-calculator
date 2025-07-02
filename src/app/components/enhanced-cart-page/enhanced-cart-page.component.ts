@@ -113,6 +113,10 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
   isBuyNowMode: boolean = false;
   isFromCalculator: boolean = false;
 
+  // Form interaction tracking
+  private hasUserInteractedWithAddress = false;
+  private addressInteractionTimeout: any;
+
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
@@ -142,7 +146,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         switchMap(state => {
-          console.log('🛒 Enhanced Cart: Currency changed, reloading pricing data for:', state.currency.code);
+          // Currency changed, reloading pricing data
           return this.pricingService.fetchPricingData(state.currency.code);
         })
       )
@@ -150,6 +154,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         next: (response: PricingApiResponse) => {
           if (response?.productFamilies && Array.isArray(response.productFamilies)) {
             this.productFamilies = response.productFamilies;
+            this.patchSignPlansPricing(); // Ensure Sign plans have package pricing
             this.initializeCartFromQueryParams();
           } else {
             this.loadingError = 'Invalid pricing data received';
@@ -168,7 +173,12 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     this.route.queryParams
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => {
-        console.log('🛒 Enhanced Cart: Parsing query parameters:', params);
+        // Check if returning from confirmation page
+        if (params['step'] === 'cart') {
+          this.restoreCartStateFromStorage();
+        }
+        
+        // Parsing query parameters
         this.parseQueryParameters(params);
         this.buildCartItems();
         this.generateRecommendations();
@@ -214,7 +224,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     const family = this.productFamilies.find(f => f.name === productFamily);
     if (!family) return;
 
-    const price = this.pricingService.calculatePrice(family, planName, seats, packages, apiCalls, term);
+    const price = this.pricingService.calculateCartPrice(family, planName, seats, packages, apiCalls, term);
     
     const cartItem: EnhancedCartItem = {
       id: `${productFamily.toLowerCase().replace(' ', '')}_${planName.toLowerCase().replace(' ', '')}`,
@@ -227,7 +237,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       price,
       canModifySeats: true,
       canModifyPackages: productFamily === 'Nitro Sign',
-      canModifyApiCalls: productFamily === 'Nitro Sign' && planName === 'Sign Enterprise'
+      canModifyApiCalls: productFamily === 'Nitro Sign' && planName.includes('Enterprise')
     };
 
     this.cartItems.push(cartItem);
@@ -248,7 +258,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
 
   private async calculatePricingWithBackend(): Promise<void> {
     try {
-      console.log('🔧 Calculating pricing with backend API...');
+      // Calculating pricing with backend API
       
       // Check if we have any items to calculate
       const estimateItems = this.buildEstimateItems();
@@ -268,20 +278,19 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         billingTerm: this.getBillingTermFromItems()
       };
       
-      console.log('📊 Estimate request:', estimateRequest);
+      // Building estimate request
       
       // Call backend estimate API
       const response = await this.httpClient.post<any>(`${environment.apiUrl}/estimate`, estimateRequest).toPromise();
       
-      console.log('✅ Estimate response:', response);
+      // Processing estimate response
       
       // Update pricing from backend response
       this.subtotal = response.subtotal || 0;
       this.totalPrice = this.subtotal;
       
-      // Calculate taxes (will be updated when user enters address)
-      this.taxAmount = 0;
-      this.finalTotal = this.subtotal + this.taxAmount;
+      // Try to calculate taxes immediately if we have address info
+      await this.tryInitialTaxCalculation();
       
       // Update cart items with backend pricing
       if (response.items && Array.isArray(response.items)) {
@@ -350,10 +359,14 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     this.addonOptions = [];
 
     // Debug: Show available product families and their plans
-    console.log('🔍 Available product families and plans:');
-    this.productFamilies.forEach(family => {
-      console.log(`  ${family.name}:`, family.plans.map(p => p.name));
-    });
+    // Debug: Available product families and plans
+    /*
+    // Debug: Available product families and plans
+    // Debug: Available product families and plans (disabled)
+    // this.productFamilies.forEach(family => {
+    //   console.log(`${family.name}:`, family.plans.map(p => p.name));
+    // });
+    */
 
     // Generate cross-sell and upsell recommendations based on cart items
     this.cartItems.forEach(item => {
@@ -362,11 +375,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       this.generateAddonOptions(item);
     });
 
-    console.log('📈 Generated recommendations:', {
-      crossSell: this.crossSellRecommendations.length,
-      upsell: this.upsellSuggestions.length,
-      addons: this.addonOptions.length
-    });
+    // Generated recommendations for cart
   }
 
   private generateCrossSellRecommendations(item: EnhancedCartItem): void {
@@ -374,12 +383,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     let crossSellFamily = '';
     let crossSellPlan = '';
     
-    console.log('🎯 Generating cross-sell for item:', {
-      productFamily: item.productFamily,
-      planName: item.planName,
-      term: item.term,
-      availableProductFamilies: this.productFamilies.map(f => f.name)
-    });
+    // Generating cross-sell for item
     
     if (item.productFamily === 'Nitro PDF') {
       crossSellFamily = 'Nitro Sign';
@@ -395,18 +399,18 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       else if (item.planName.includes('Enterprise')) crossSellPlan = 'Nitro PDF Enterprise';
     }
 
-    console.log('🎯 Cross-sell target:', { crossSellFamily, crossSellPlan });
+    // Cross-sell target determined
 
     // Check if we already have this product family in cart
     const hasThisFamily = this.cartItems.some(cartItem => cartItem.productFamily === crossSellFamily);
     
     if (crossSellFamily && crossSellPlan && !hasThisFamily) {
       const family = this.productFamilies.find(f => f.name === crossSellFamily);
-      console.log('🎯 Found product family:', family?.name);
+      // Found product family for cross-sell
       
       if (family) {
-        const price = this.pricingService.calculatePrice(family, crossSellPlan, 1, 0, 0, item.term);
-        console.log('🎯 Calculated cross-sell price:', price);
+        const price = this.pricingService.calculateCartPrice(family, crossSellPlan, 1, 0, 0, item.term);
+        // Calculated cross-sell price
         
         this.crossSellRecommendations.push({
           productFamily: crossSellFamily,
@@ -419,13 +423,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       } else {
         console.warn('⚠️ Cross-sell product family not found:', crossSellFamily);
       }
-    } else {
-      console.log('🎯 Skipping cross-sell:', { 
-        crossSellFamily, 
-        crossSellPlan, 
-        hasThisFamily,
-        reason: !crossSellFamily ? 'No cross-sell family' : !crossSellPlan ? 'No cross-sell plan' : 'Family already in cart'
-      });
+    } else {      // Skipping cross-sell (already in cart or family not found)
     }
   }
 
@@ -439,24 +437,14 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       upsellPlan = item.planName.replace('Plus', 'Enterprise');
     }
 
-    console.log('🎯 Upsell logic:', { 
-      currentPlan: item.planName, 
-      suggestedUpsell: upsellPlan,
-      productFamily: item.productFamily 
-    });
+    // Upsell logic processing
 
     if (upsellPlan) {
       const family = this.productFamilies.find(f => f.name === item.productFamily);
       if (family) {
         const currentPrice = item.price;
-        const upsellPrice = this.pricingService.calculatePrice(family, upsellPlan, item.seats, item.packages || 0, item.apiCalls || 0, item.term);
-        const priceIncrease = upsellPrice - currentPrice;
-
-        console.log('🎯 Upsell pricing:', { 
-          currentPrice, 
-          upsellPrice, 
-          priceIncrease 
-        });
+        const upsellPrice = this.pricingService.calculateCartPrice(family, upsellPlan, item.seats, item.packages || 0, item.apiCalls || 0, item.term);
+        const priceIncrease = upsellPrice - currentPrice;        // Upsell pricing calculated
 
         if (priceIncrease > 0) {
           this.upsellSuggestions.push({
@@ -513,11 +501,28 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     
     // Fallback to default pricing if not found in backend data
     const packagePrices: { [key: string]: number } = {
+      'Nitro Sign Standard': 5,
+      'Nitro Sign Plus': 4,
+      'Nitro Sign Enterprise': 3,
+      // Also support shorter names for compatibility
       'Sign Standard': 5,
       'Sign Plus': 4,
       'Sign Enterprise': 3
     };
-    return packagePrices[planName] || 5;
+    
+    // Try exact match first
+    if (packagePrices[planName]) {
+      return packagePrices[planName];
+    }
+    
+    // Check for partial matches
+    for (const [key, price] of Object.entries(packagePrices)) {
+      if (planName.includes(key.replace('Nitro ', ''))) {
+        return price;
+      }
+    }
+    
+    return 5; // Default fallback
   }
 
   private getApiPrice(planName: string): number {
@@ -531,7 +536,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     }
     
     // Fallback to default pricing if not found in backend data
-    return planName === 'Sign Enterprise' ? 0.01 : 0;
+    return planName.includes('Enterprise') ? 0.01 : 0;
   }
 
   private getCrossSellBenefits(crossSellFamily: string, crossSellPlan: string): string[] {
@@ -579,7 +584,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
 
   private async initializeStripeElements(): Promise<void> {
     try {
-      console.log('🔧 Enhanced Cart: Initializing Stripe Elements...');
+      // Initializing Stripe Elements
       
       // Initialize Stripe first
       await this.stripeService.initializeStripe();
@@ -597,7 +602,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       const paymentContainer = document.getElementById('payment-element');
       
       if (addressContainer && paymentContainer) {
-        // Create and mount address element
+        // Create and mount address element with delayed validation
         await this.stripeService.createAddressElement('address-element', {
           mode: 'billing',
           autocomplete: { mode: 'automatic' },
@@ -625,10 +630,12 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         this.isPaymentElementReady = true;
         this.isStripeReady = true;
         
-        // Setup form validation
-        this.setupFormValidation();
+        // Wait a moment before setting up validation to avoid immediate error display
+        setTimeout(() => {
+          this.setupFormValidation();
+        }, 500);
         
-        console.log('✅ Enhanced Cart: Stripe Elements initialized successfully');
+        // Stripe Elements initialized successfully
       } else {
         console.warn('⚠️ Enhanced Cart: Stripe element containers not found');
       }
@@ -640,6 +647,86 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
   private setupFormValidation(): void {
     // Watch for email changes
     this.validateForm();
+    
+    // Watch for address changes to calculate taxes
+    this.setupAddressChangeListener();
+  }
+
+  private setupAddressChangeListener(): void {
+    // Set up address element change listener for tax calculation
+    if (this.isAddressElementReady) {
+      // Use a debounced function to avoid too many tax calculation calls
+      let addressChangeTimeout: any;
+      
+      const handleAddressChange = async () => {
+        // Mark that user has interacted with address
+        this.hasUserInteractedWithAddress = true;
+        
+        clearTimeout(addressChangeTimeout);
+        addressChangeTimeout = setTimeout(async () => {
+          try {
+            const addressValue = await this.stripeService.getAddressElementValue();
+            if (addressValue?.address?.postal_code && addressValue?.address?.state) {
+              await this.calculateTaxes({ address: addressValue.address });
+            }
+          } catch (error) {
+            console.warn('⚠️ Error getting address for tax calculation:', error);
+          }
+        }, 1000); // Wait 1 second after user stops typing
+      };
+
+      // Set up the address element event listeners
+      try {
+        const addressElement = this.stripeService.getAddressElement();
+        if (addressElement) {
+          // Track all interaction events
+          addressElement.on('change', handleAddressChange);
+          addressElement.on('focus', () => {
+            if (!this.hasUserInteractedWithAddress) {
+              this.hasUserInteractedWithAddress = true;
+              // Start autofill detection after first interaction
+              setTimeout(() => this.setupAutofillDetection(), 1000);
+            }
+          });
+          addressElement.on('blur', handleAddressChange);
+          
+          // Remove autofill detection since it triggers validation
+          // We'll only check for tax calculation after user interaction
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not set up address change listener:', error);
+      }
+    }
+  }
+
+  private setupAutofillDetection(): void {
+    // Only set up autofill detection after user has started interacting
+    if (!this.hasUserInteractedWithAddress) {
+      return;
+    }
+    
+    // Check for autofilled data every few seconds, but only if user has interacted
+    const checkForAutofill = setInterval(async () => {
+      try {
+        if (!this.hasUserInteractedWithAddress) {
+          clearInterval(checkForAutofill);
+          return;
+        }
+        
+        const addressValue = await this.stripeService.getAddressElementValue();
+        if (addressValue?.address?.postal_code && addressValue?.address?.state && this.taxAmount === 0) {
+          await this.calculateTaxes({ address: addressValue.address });
+          clearInterval(checkForAutofill); // Stop checking once we have address
+        }
+      } catch (error) {
+        // Ignore errors in autofill detection
+      }
+    }, 3000); // Check every 3 seconds
+    
+    // Stop checking after 30 seconds
+    setTimeout(() => {
+      clearInterval(checkForAutofill);
+    }, 30000);
   }
 
   private validateForm(): void {
@@ -658,18 +745,26 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     this.validateForm();
   }
 
-  updateCartItemQuantity(itemId: string, field: 'seats' | 'packages' | 'apiCalls', value: number): void {
+  updateCartItemQuantity(itemId: string, field: 'seats' | 'packages' | 'apiCalls', value: number | string): void {
     const item = this.cartItems.find(i => i.id === itemId);
     if (!item) return;
 
     const family = this.productFamilies.find(f => f.name === item.productFamily);
     if (!family) return;
 
-    // Update the field
-    item[field] = Math.max(1, value);
+    // Convert string to number if needed
+    const numericValue = typeof value === 'string' ? parseInt(value, 10) : value;
+    if (isNaN(numericValue)) return;
+
+    // Update the field with appropriate minimum values
+    if (field === 'seats') {
+      item[field] = Math.max(1, numericValue); // Seats minimum is 1
+    } else if (field === 'packages' || field === 'apiCalls') {
+      item[field] = Math.max(0, numericValue); // Packages and API calls minimum is 0
+    }
     
     // Recalculate price
-    item.price = this.pricingService.calculatePrice(
+    const newPrice = this.pricingService.calculateCartPrice(
       family,
       item.planName,
       item.seats,
@@ -677,9 +772,12 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       item.apiCalls || 0,
       item.term
     );
+    
+    item.price = newPrice;
 
-    // Update total
+    // Update total and recalculate tax with current address
     this.buildCartItems();
+    this.recalculateTaxIfAddressAvailable();
     
     // Regenerate recommendations based on new quantities
     this.generateRecommendations();
@@ -705,6 +803,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
 
     this.cartItems.push(newItem);
     this.buildCartItems();
+    this.recalculateTaxIfAddressAvailable();
     this.generateRecommendations();
   }
 
@@ -723,7 +822,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     item.planName = suggestion.suggestedPlan;
     
     // Recalculate price
-    item.price = this.pricingService.calculatePrice(
+    item.price = this.pricingService.calculateCartPrice(
       family,
       item.planName,
       item.seats,
@@ -733,18 +832,19 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     );
 
     // Update API calls availability for Sign Enterprise
-    if (suggestion.suggestedPlan === 'Sign Enterprise') {
+    if (suggestion.suggestedPlan.includes('Enterprise')) {
       item.canModifyApiCalls = true;
     }
 
     this.buildCartItems();
+    this.recalculateTaxIfAddressAvailable();
     this.generateRecommendations();
   }
 
   addAddon(addon: AddonOption): void {
     const signItem = this.cartItems.find(i => 
       i.productFamily === 'Nitro Sign' && 
-      (addon.type === 'apiCalls' ? i.planName === 'Sign Enterprise' : true)
+      (addon.type === 'apiCalls' ? i.planName.includes('Enterprise') : true)
     );
     
     if (!signItem) return;
@@ -769,6 +869,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     }
 
     this.buildCartItems();
+    this.recalculateTaxIfAddressAvailable();
     this.generateRecommendations();
   }
 
@@ -787,7 +888,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         currency: this.localizationService.currentCurrency
       };
       
-      console.log('🎫 Validating coupon with backend:', couponRequest);
+      // Validating coupon with backend
       
       const response = await this.httpClient.post<any>(`${environment.apiUrl}/coupons/validate`, couponRequest).toPromise();
       
@@ -798,7 +899,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
           description: response.description || `${response.discountPercent}% off`
         };
         
-        console.log('✅ Coupon applied:', this.appliedCoupon);
+        // Coupon applied successfully
         this.couponCode = '';
         this.calculatePricingWithBackend(); // Recalculate with discount
       } else {
@@ -831,7 +932,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result && result.submitted) {
-        console.log('Sales contact form submitted from enhanced cart:', result);
+        // Sales contact form submitted from enhanced cart
         // Redirect back to pricing page
         this.router.navigate(['/']);
       }
@@ -847,7 +948,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
     try {
       // Get customer info from Stripe Elements
       const addressElementValue = await this.stripeService.getAddressElementValue();
-      console.log('🔍 Raw Address Element value:', addressElementValue);
+      // Getting raw Address Element value
 
       const customerInfo = {
         email: this.customerEmail,
@@ -884,13 +985,13 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       }
 
       // Create payment method while Elements are still mounted and accessible
-      console.log('💳 Creating payment method before navigation...');
+      // Creating payment method before navigation
       let paymentMethodId: string | null = null;
       
       try {
         const paymentResult = await this.stripeService.submitAndCreatePaymentMethod(this.customerEmail);
         paymentMethodId = paymentResult.paymentMethodId;
-        console.log('✅ Payment method created successfully:', paymentMethodId);
+        // Payment method created successfully
         
         // Store payment method data for confirmation page
         const paymentData = {
@@ -899,7 +1000,7 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
           createdAt: new Date().toISOString()
         };
         sessionStorage.setItem('checkoutPaymentData', JSON.stringify(paymentData));
-        console.log('✅ Payment method data stored for confirmation page');
+        // Payment method data stored for confirmation page
         
       } catch (paymentError) {
         console.error('❌ Error creating payment method:', paymentError);
@@ -929,13 +1030,35 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         tax: this.taxAmount,
         total: total,
         discountAmount: discount,
-        appliedCoupon: this.appliedCoupon ? this.appliedCoupon.code : ''
+        appliedCoupon: this.appliedCoupon ? this.appliedCoupon.code : '',
+        // Additional cart state for proper restoration when going back
+        cartState: {
+          customerEmail: this.customerEmail,
+          couponCode: this.couponCode,
+          appliedCouponData: this.appliedCoupon,
+          originalCartItems: this.cartItems,
+          taxCalculated: this.taxAmount > 0,
+          addressProvided: !!customerInfo.address.line1
+        }
       };
+
+      // Store customer info in localStorage for tax calculation persistence
+      try {
+        localStorage.setItem('customer_info', JSON.stringify(customerInfo));
+      } catch (error) {
+        console.warn('⚠️ Could not store customer info in localStorage:', error);
+      }
 
       // Store order data in session storage
       try {
+        console.log('💾 Storing order data with tax amount:', {
+          tax: this.taxAmount,
+          subtotal: subtotal,
+          total: total,
+          taxCalculated: this.taxAmount > 0
+        });
         sessionStorage.setItem('checkoutOrderData', JSON.stringify(orderData));
-        console.log('✅ Order data stored for confirmation:', orderData);
+        console.log('✅ Order data stored successfully for confirmation');
       } catch (error) {
         console.error('❌ Error storing order data:', error);
       }
@@ -974,7 +1097,16 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
         tax: this.taxAmount,
         total: this.subtotal + this.taxAmount,
         discountAmount: this.appliedCoupon?.discount || 0,
-        appliedCoupon: this.appliedCoupon ? this.appliedCoupon.code : ''
+        appliedCoupon: this.appliedCoupon ? this.appliedCoupon.code : '',
+        // Additional cart state for proper restoration when going back
+        cartState: {
+          customerEmail: this.customerEmail,
+          couponCode: this.couponCode,
+          appliedCouponData: this.appliedCoupon,
+          originalCartItems: this.cartItems,
+          taxCalculated: this.taxAmount > 0,
+          addressProvided: false
+        }
       };
 
       sessionStorage.setItem('checkoutOrderData', JSON.stringify(orderData));
@@ -999,12 +1131,39 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
   // Tax Calculation (exactly like old checkout)
   private async calculateTaxes(addressData?: any): Promise<void> {
     try {
-      if (!addressData || !addressData.address || this.subtotal === 0) {
-        console.log('💡 Tax calculation skipped - no address or subtotal');
+      console.log('🧮 calculateTaxes called with addressData:', addressData);
+      
+      if (!addressData || this.subtotal === 0) {
+        console.log('⚠️ Tax calculation skipped - no address or subtotal:', {
+          hasAddressData: !!addressData,
+          subtotal: this.subtotal
+        });
         this.taxAmount = 0;
         this.finalTotal = this.subtotal;
         return;
       }
+
+      // Handle both direct address object and wrapped address object
+      const address = addressData.address || addressData;
+      
+      // Handle both postal_code (Stripe) and postalCode (our internal format)
+      const postalCode = address.postal_code || address.postalCode;
+      
+      if (!address || !postalCode || !address.state) {
+        console.log('⚠️ Tax calculation skipped - incomplete address:', {
+          hasAddress: !!address,
+          hasPostalCode: !!postalCode,
+          hasState: !!address?.state,
+          postalCodeValue: postalCode,
+          stateValue: address?.state,
+          addressKeys: address ? Object.keys(address) : []
+        });
+        this.taxAmount = 0;
+        this.finalTotal = this.subtotal;
+        return;
+      }
+
+      console.log('📍 Address data for tax calculation:', address);
 
       // Use the exact same tax calculation API as the old checkout
       const taxItems = this.cartItems.map(item => ({
@@ -1018,24 +1177,35 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
       const taxRequest = {
         items: taxItems,
         customerAddress: {
-          line1: addressData.address.line1,
-          city: addressData.address.city,
-          state: addressData.address.state,
-          zip: addressData.address.postal_code,
-          country: addressData.address.country
+          line1: address.line1,
+          city: address.city,
+          state: address.state,
+          zip: postalCode, // Use the postal code we found
+          country: address.country
         },
         currency: this.localizationService.currentCurrency
       };
 
-      console.log('💰 Calculating tax (like old checkout):', taxRequest);
-      
+      console.log('📋 Tax request payload:', taxRequest);
+      console.log('🔍 Checking required fields:', {
+        hasZip: !!taxRequest.customerAddress.zip,
+        hasState: !!taxRequest.customerAddress.state,
+        hasCity: !!taxRequest.customerAddress.city,
+        hasLine1: !!taxRequest.customerAddress.line1,
+        zipValue: taxRequest.customerAddress.zip,
+        stateValue: taxRequest.customerAddress.state
+      });
+
       // Use the same tax endpoint as the old checkout
       const response = await this.httpClient.post<any>(`${environment.apiUrl}/taxes`, taxRequest).toPromise();
       
       if (response && response.totalTax) {
         this.taxAmount = response.totalTax.amount || 0;
         this.finalTotal = this.subtotal + this.taxAmount;
-        console.log('✅ Tax calculated:', { amount: this.taxAmount, currency: response.totalTax.currency });
+        console.log('✅ Tax calculated successfully:', {
+          taxAmount: this.taxAmount,
+          finalTotal: this.finalTotal
+        });
       } else {
         console.warn('⚠️ No tax data returned, proceeding without tax');
         this.taxAmount = 0;
@@ -1060,5 +1230,159 @@ export class EnhancedCartPageComponent implements OnInit, OnDestroy {
 
   returnToPricing(): void {
     this.router.navigate(['/']);
+  }
+
+  private patchSignPlansPricing(): void {
+    // Ensure Nitro Sign plans have package pricing configured
+    const signFamily = this.productFamilies.find(f => f.name === 'Nitro Sign');
+    if (signFamily) {
+      signFamily.plans.forEach(plan => {
+        // Add package pricing if not present
+        if (!plan.packagePrice) {
+          if (plan.name.includes('Enterprise')) {
+            (plan as any).packagePrice = 3;
+          } else if (plan.name.includes('Plus')) {
+            (plan as any).packagePrice = 4;
+          } else if (plan.name.includes('Standard')) {
+            (plan as any).packagePrice = 5;
+          }
+        }
+        
+        // Add API pricing if not present for Enterprise plans
+        if (plan.name.includes('Enterprise') && !plan.apiPrice) {
+          (plan as any).apiPrice = 0.01;
+        }
+      });
+    }
+  }
+
+  private getSeatPrice(item: EnhancedCartItem): number {
+    const family = this.productFamilies.find(f => f.name === item.productFamily);
+    if (!family) return 0;
+
+    const plan = family.plans.find(p => p.name === item.planName);
+    if (!plan) return 0;
+
+    const pricing = item.term === '1year' ? plan.oneYearPricing : plan.threeYearPricing;
+    if (!pricing || pricing.length === 0) return 0;
+
+    // Find the applicable tier for current seat count
+    const applicableTier = pricing
+      .slice()
+      .reverse()
+      .find(tier => item.seats >= tier.minSeats);
+
+    return applicableTier ? applicableTier.price : 0;
+  }
+
+  // Try to calculate taxes immediately if address info is available
+  private async tryInitialTaxCalculation(): Promise<void> {
+    // Initialize with no tax first
+    this.taxAmount = 0;
+    this.finalTotal = this.subtotal;
+    
+    // Only try to calculate tax from stored data, don't access Stripe elements yet
+    // to avoid triggering validation errors
+    try {
+      // Check if there's any stored customer information from previous session
+      const storedCustomerInfo = localStorage.getItem('customer_info');
+      if (storedCustomerInfo) {
+        const customerInfo = JSON.parse(storedCustomerInfo);
+        if (customerInfo.address && customerInfo.address.line1) {
+          console.log('💰 Found stored address data, calculating initial tax');
+          await this.calculateTaxes({ address: customerInfo.address });
+          return;
+        }
+      }
+      
+      // If no stored data, just proceed without tax until user enters address
+      console.log('📍 No stored address data found, tax will be calculated when user enters address');
+      this.taxAmount = 0;
+      this.finalTotal = this.subtotal;
+      
+    } catch (error) {
+      // If anything fails, just proceed without tax
+      console.warn('⚠️ Initial tax calculation failed, will calculate when user enters address:', error);
+      this.taxAmount = 0;
+      this.finalTotal = this.subtotal;
+    }
+  }
+
+  private restoreCartStateFromStorage(): void {
+    console.log('🔄 Attempting to restore cart state from storage...');
+    
+    // Try to restore cart state when returning from confirmation
+    try {
+      const orderData = JSON.parse(sessionStorage.getItem('checkoutOrderData') || '{}');
+      console.log('🔍 Found sessionStorage data:', orderData);
+      
+      if (orderData && orderData.cartState) {
+        const cartState = orderData.cartState;
+        console.log('🔍 Cart state found:', cartState);
+        
+        // Restore customer email
+        if (cartState.customerEmail) {
+          this.customerEmail = cartState.customerEmail;
+          this.validateForm();
+          console.log('✅ Restored customer email:', this.customerEmail);
+        }
+        
+        // Restore coupon
+        if (cartState.appliedCouponData) {
+          this.appliedCoupon = cartState.appliedCouponData;
+          console.log('✅ Restored coupon:', this.appliedCoupon);
+        }
+        
+        // Restore tax amount if it was calculated and mark interaction as true
+        if (cartState.taxCalculated && orderData.tax) {
+          this.taxAmount = orderData.tax;
+          this.finalTotal = this.subtotal + this.taxAmount;
+          // If we had tax calculated before, user must have interacted with address
+          this.hasUserInteractedWithAddress = cartState.addressProvided || true;
+          console.log('✅ Restored tax amount:', this.taxAmount);
+        }
+        
+        // Restore original cart items to ensure quantities are correct
+        if (cartState.originalCartItems && cartState.originalCartItems.length > 0) {
+          this.cartItems = cartState.originalCartItems;
+          console.log('✅ Restored cart items:', this.cartItems);
+          // Recalculate pricing to ensure consistency
+          this.buildCartItems();
+        }
+        
+        // Try to restore customer address for tax calculation
+        if (orderData.customerInfo && orderData.customerInfo.address) {
+          const customerInfo = orderData.customerInfo;
+          localStorage.setItem('customer_info', JSON.stringify(customerInfo));
+          console.log('✅ Restored customer info to localStorage');
+        }
+        
+        console.log('✅ Cart state restored from confirmation page');
+      } else {
+        console.log('⚠️ No cart state found in sessionStorage');
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not restore cart state:', error);
+    }
+  }
+
+  private async recalculateTaxIfAddressAvailable(): Promise<void> {
+    // Only recalculate tax if user has actually interacted with the address form
+    if (!this.hasUserInteractedWithAddress) {
+      console.log('🚫 Skipping tax recalculation - user has not interacted with address form yet');
+      return;
+    }
+    
+    // Try to get current address from Stripe elements and recalculate tax
+    try {
+      if (this.isAddressElementReady) {
+        const addressValue = await this.stripeService.getAddressElementValue();
+        if (addressValue?.address?.postal_code && addressValue?.address?.state) {
+          await this.calculateTaxes({ address: addressValue.address });
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not recalculate tax after cart update:', error);
+    }
   }
 }

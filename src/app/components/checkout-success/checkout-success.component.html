@@ -72,15 +72,9 @@
         <div class="order-details-card">
           <div class="card-header">
             <h2>Order Details</h2>
-            <button 
-              mat-icon-button 
-              (click)="toggleDetails()"
-              class="toggle-button">
-              <mat-icon>{{ showDetails ? 'expand_less' : 'expand_more' }}</mat-icon>
-            </button>
           </div>
           
-          <div class="details-content" [class.expanded]="showDetails">
+          <div class="details-content expanded">
             <div *ngIf="orderData" class="order-info">
               
               <!-- Customer Info -->
