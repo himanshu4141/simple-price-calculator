@@ -146,6 +146,9 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
   paymentErrors = '';
   paymentMethodCreated = false;
   
+  // Checkout data - store for later use in confirmation
+  private checkoutItems: CheckoutItem[] = [];
+  
   // Pricing data
   estimateTotal = 0;
   taxAmount = 0;
@@ -593,6 +596,9 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
+    // Store checkout items for later use in payment confirmation
+    this.checkoutItems = checkoutItems;
+
     const checkoutRequest: CheckoutRequest = {
       customer: {
         firstName: formValue.firstName,
@@ -926,10 +932,10 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Notify backend that payment has been confirmed
+   * Notify backend that payment has been confirmed and create subscription
    */
   private async notifyBackendOfPaymentConfirmation(checkoutResponse: CheckoutResponse): Promise<void> {
-    if (!checkoutResponse.customerId || !checkoutResponse.subscriptionId || !checkoutResponse.paymentIntentId) {
+    if (!checkoutResponse.customerId || !checkoutResponse.paymentIntentId) {
       console.error('❌ Missing required data for payment confirmation');
       this.paymentErrors = 'Payment confirmation failed. Please try again.';
       this.isProcessingPayment = false;
@@ -937,31 +943,32 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     try {
-      console.log('🔄 Notifying backend of payment confirmation...');
+      console.log('🔄 Creating subscription after payment confirmation...');
       
-      const confirmRequest = {
+      const subscriptionRequest = {
         customerId: checkoutResponse.customerId,
-        subscriptionId: checkoutResponse.subscriptionId,
-        paymentIntentId: checkoutResponse.paymentIntentId
+        paymentIntentId: checkoutResponse.paymentIntentId,
+        items: this.checkoutItems,
+        currency: this.localizationService.currentCurrency
       };
 
-      const confirmResponse = await this.httpClient.post<CheckoutResponse>(
-        `${environment.apiUrl}/confirm-payment`,
-        confirmRequest
+      const subscriptionResponse = await this.httpClient.post<CheckoutResponse>(
+        `${environment.apiUrl}/create-subscription`,
+        subscriptionRequest
       ).toPromise();
 
       this.isProcessingPayment = false;
 
-      if (confirmResponse?.success) {
-        console.log('✅ Payment confirmation completed successfully');
+      if (subscriptionResponse?.success) {
+        console.log('✅ Subscription created successfully after payment confirmation');
         this.checkoutComplete = true;
       } else {
-        console.error('❌ Backend payment confirmation failed:', confirmResponse);
-        this.paymentErrors = confirmResponse?.message || 'Payment confirmation failed. Please contact support.';
+        console.error('❌ Subscription creation failed:', subscriptionResponse);
+        this.paymentErrors = subscriptionResponse?.message || 'Subscription creation failed. Please contact support.';
       }
     } catch (error) {
-      console.error('❌ Error notifying backend of payment confirmation:', error);
-      this.paymentErrors = 'Payment confirmation failed. Please contact support.';
+      console.error('❌ Error creating subscription after payment confirmation:', error);
+      this.paymentErrors = 'Subscription creation failed. Please contact support.';
       this.isProcessingPayment = false;
     }
   }

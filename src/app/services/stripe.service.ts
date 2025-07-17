@@ -880,9 +880,9 @@ export class StripeService {
     console.log('🔐 Handling 3D Secure authentication...');
 
     // Use handleCardAction to handle 3DS authentication
-    const { error, paymentIntent } = await this.stripe.handleCardAction({
+    const { error, paymentIntent } = await this.stripe.handleCardAction(
       clientSecret
-    });
+    );
 
     if (error) {
       console.error('❌ 3D Secure authentication failed:', error);
