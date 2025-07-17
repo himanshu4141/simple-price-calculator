@@ -212,4 +212,24 @@ class StripeClient(config: StripeConfig)(implicit ec: ExecutionContext) extends 
       }
     }
   }
+
+  /**
+   * Retrieve a PaymentIntent by ID
+   */
+  def retrievePaymentIntent(paymentIntentId: String): Future[Either[String, PaymentIntent]] = {
+    Future {
+      Try {
+        logger.info(s"Retrieving PaymentIntent: $paymentIntentId")
+        val paymentIntent = PaymentIntent.retrieve(paymentIntentId)
+        logger.info(s"✅ PaymentIntent retrieved: ${paymentIntent.getId}, status: ${paymentIntent.getStatus}")
+        paymentIntent
+      } match {
+        case Success(paymentIntent) => Right(paymentIntent)
+        case Failure(exception) =>
+          val errorMsg = s"Failed to retrieve PaymentIntent: ${exception.getMessage}"
+          logger.error(errorMsg, exception)
+          Left(errorMsg)
+      }
+    }
+  }
 }

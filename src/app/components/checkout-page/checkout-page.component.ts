@@ -56,6 +56,9 @@ interface CheckoutResponse {
   readonly salesContactRequired?: boolean;
   readonly message?: string;
   readonly error?: string;
+  readonly paymentIntentId?: string;
+  readonly paymentStatus?: string;
+  readonly paymentIntentClientSecret?: string;
 }
 
 interface TaxRequest {
@@ -637,7 +640,15 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (response.success) {
           console.log('✅ Checkout successful:', response);
-          this.checkoutComplete = true;
+          
+          // Check if payment needs frontend confirmation
+          if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation') {
+            console.log('🔄 Payment requires frontend confirmation');
+            this.confirmPaymentOnFrontend(response);
+          } else {
+            // Payment already completed or no payment required
+            this.checkoutComplete = true;
+          }
         } else if (response.salesContactRequired) {
           console.log('📞 Sales contact required:', response);
           this.showSalesModal = true;
@@ -864,5 +875,91 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getCurrentCurrency(): string {
     return this.localizationService.currentCurrency;
+  }
+
+  /**
+   * Confirm payment on frontend after subscription is created
+   */
+  private async confirmPaymentOnFrontend(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.paymentIntentClientSecret) {
+      console.error('❌ No payment intent client secret provided');
+      this.errorMessage = 'Payment confirmation failed. Please try again.';
+      return;
+    }
+
+    this.isProcessingPayment = true;
+    this.paymentErrors = '';
+
+    try {
+      console.log('🔄 Confirming payment on frontend...');
+      
+      // Confirm payment using Stripe
+      const { error, paymentIntent } = await this.stripeService.confirmPayment(
+        checkoutResponse.paymentIntentClientSecret
+      );
+
+      if (error) {
+        console.error('❌ Frontend payment confirmation failed:', error);
+        this.paymentErrors = error.message || 'Payment confirmation failed. Please try again.';
+        this.isProcessingPayment = false;
+        return;
+      }
+
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log('✅ Payment confirmed successfully on frontend');
+        
+        // Notify backend that payment is confirmed
+        await this.notifyBackendOfPaymentConfirmation(checkoutResponse);
+      } else {
+        console.error('❌ Payment not succeeded:', paymentIntent?.status);
+        this.paymentErrors = 'Payment confirmation failed. Please try again.';
+        this.isProcessingPayment = false;
+      }
+    } catch (error) {
+      console.error('❌ Error during frontend payment confirmation:', error);
+      this.paymentErrors = 'Payment confirmation failed. Please try again.';
+      this.isProcessingPayment = false;
+    }
+  }
+
+  /**
+   * Notify backend that payment has been confirmed
+   */
+  private async notifyBackendOfPaymentConfirmation(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.customerId || !checkoutResponse.subscriptionId || !checkoutResponse.paymentIntentId) {
+      console.error('❌ Missing required data for payment confirmation');
+      this.paymentErrors = 'Payment confirmation failed. Please try again.';
+      this.isProcessingPayment = false;
+      return;
+    }
+
+    try {
+      console.log('🔄 Notifying backend of payment confirmation...');
+      
+      const confirmRequest = {
+        customerId: checkoutResponse.customerId,
+        subscriptionId: checkoutResponse.subscriptionId,
+        paymentIntentId: checkoutResponse.paymentIntentId
+      };
+
+      const confirmResponse = await this.httpClient.post<CheckoutResponse>(
+        `${environment.apiUrl}/confirm-payment`,
+        confirmRequest
+      ).toPromise();
+
+      this.isProcessingPayment = false;
+
+      if (confirmResponse?.success) {
+        console.log('✅ Payment confirmation completed successfully');
+        this.checkoutComplete = true;
+      } else {
+        console.error('❌ Backend payment confirmation failed:', confirmResponse);
+        this.paymentErrors = confirmResponse?.message || 'Payment confirmation failed. Please contact support.';
+      }
+    } catch (error) {
+      console.error('❌ Error notifying backend of payment confirmation:', error);
+      this.paymentErrors = 'Payment confirmation failed. Please contact support.';
+      this.isProcessingPayment = false;
+    }
   }
 }

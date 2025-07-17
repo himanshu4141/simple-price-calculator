@@ -1,6 +1,6 @@
 package com.nitro.pricing.routes
 
-import com.nitro.pricing.services.StripeClient
+import com.nitro.pricing.services.{StripeClient, CheckoutService}
 import com.nitro.pricing.models.JsonCodecs._
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.server.Route
@@ -32,7 +32,13 @@ case class CreateSetupIntentResponse(
   setupIntentId: String
 )
 
-class PaymentRoutes(stripeClient: StripeClient)(implicit ec: ExecutionContext) extends LazyLogging {
+case class ConfirmPaymentRequest(
+  customerId: String,
+  subscriptionId: String,
+  paymentIntentId: String
+)
+
+class PaymentRoutes(stripeClient: StripeClient, checkoutService: CheckoutService)(implicit ec: ExecutionContext) extends LazyLogging {
 
   val routes: Route =
     concat(
@@ -75,6 +81,24 @@ class PaymentRoutes(stripeClient: StripeClient)(implicit ec: ExecutionContext) e
               case Left(error) =>
                 logger.error(s"[SETUP_INTENT] Failed to create setup intent: $error")
                 complete(StatusCodes.InternalServerError, Map("error" -> error))
+            }
+          }
+        }
+      },
+      path("confirm-payment") {
+        post {
+          entity(as[ConfirmPaymentRequest]) { request =>
+            logger.info(s"Confirming payment: ${request.paymentIntentId} for customer: ${request.customerId}")
+            onSuccess(checkoutService.confirmPaymentAndActivateSubscription(
+              customerId = request.customerId,
+              subscriptionId = request.subscriptionId,
+              paymentIntentId = request.paymentIntentId
+            )) { response =>
+              if (response.success) {
+                complete(StatusCodes.OK, response)
+              } else {
+                complete(StatusCodes.BadRequest, response)
+              }
             }
           }
         }

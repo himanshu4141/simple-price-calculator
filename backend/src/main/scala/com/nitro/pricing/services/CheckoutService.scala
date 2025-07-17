@@ -62,8 +62,8 @@ class CheckoutService(
           // Handle payment methods
           request.paymentMethodId match {
             case Some(paymentMethodId) =>
-              // Payment method provided - attach it and create subscription with payment
-              processSubscriptionWithPayment(chargebeeCustomer.id, request.items, request.billingAddress, request.currency, paymentMethodId)
+              // Payment method provided - create subscription with unconfirmed payment
+              processSubscriptionWithUnconfirmedPayment(chargebeeCustomer.id, request.items, request.billingAddress, request.currency, paymentMethodId)
             case None =>
               // No payment method - create subscription without payment (might be free or require manual payment)
               processSubscriptionCreation(chargebeeCustomer.id, request.items, request.currency)
@@ -178,6 +178,153 @@ class CheckoutService(
             salesContactRequired = false,
             paymentIntentId = None,
             paymentStatus = Some("failed"),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Create subscription with unconfirmed PaymentIntent - allows frontend confirmation
+   */
+  private def processSubscriptionWithUnconfirmedPayment(
+    customerId: String, 
+    requestedItems: List[CheckoutItem], 
+    billingAddress: BillingAddress,
+    currency: String, 
+    paymentMethodId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Creating subscription with unconfirmed payment for customer: $customerId, payment method: $paymentMethodId")
+    
+    val subscriptionContainerId = s"Chargebee_susbcription_plan-${currency.toUpperCase}-1_YEAR"
+    val allItems = CheckoutItem(subscriptionContainerId, 1) :: requestedItems
+    
+    // New flow: Create unconfirmed PaymentIntent and Chargebee subscription
+    // Frontend will confirm the payment later
+    for {
+      // Step 1: Calculate total amount using Chargebee estimate API
+      totalAmount <- calculateTotalAmount(customerId, allItems, billingAddress, currency)
+      
+      // Step 2: Create UNCONFIRMED PaymentIntent in Stripe
+      paymentIntentResult <- stripeClient.createPaymentIntent(
+        amount = totalAmount,
+        currency = currency,
+        paymentMethodId = Some(paymentMethodId),
+        captureMethod = Some("manual"), // Use manual capture for Chargebee compatibility
+        setupFutureUsage = Some("off_session"),
+        automaticPaymentMethods = false // Use manual confirmation
+      )
+      
+      // Step 3: Create Chargebee subscription with unconfirmed PaymentIntent
+      subscriptionResult <- paymentIntentResult match {
+        case Right(paymentIntent) =>
+          logger.info(s"✅ Unconfirmed PaymentIntent created: ${paymentIntent.getId}")
+          chargebeeClient.createSubscriptionWithPaymentIntent(customerId, allItems, paymentIntent.getId)
+        case Left(error) =>
+          logger.error(s"❌ Failed to create PaymentIntent: $error")
+          Future.successful(Left(s"Failed to create PaymentIntent: $error"))
+      }
+      
+      // Step 4: Return response with PaymentIntent details for frontend confirmation
+      finalResponse <- subscriptionResult match {
+        case Right(subscription) =>
+          paymentIntentResult match {
+            case Right(paymentIntent) =>
+              logger.info(s"✅ Subscription created, awaiting payment confirmation - Customer: $customerId, Subscription: ${subscription.id}")
+              Future.successful(CheckoutResponse(
+                success = true,
+                customerId = customerId,
+                subscriptionId = Some(subscription.id),
+                hostedPageUrl = None,
+                message = "Subscription created successfully. Please confirm payment.",
+                salesContactRequired = false,
+                paymentIntentId = Some(paymentIntent.getId),
+                paymentStatus = Some("requires_confirmation"),
+                paymentIntentClientSecret = Some(paymentIntent.getClientSecret),
+                portalSessionUrl = None,
+                portalSessionId = None
+              ))
+            case Left(error) =>
+              Future.successful(CheckoutResponse(
+                success = false,
+                customerId = customerId,
+                subscriptionId = None,
+                hostedPageUrl = None,
+                message = s"Payment setup failed: $error",
+                salesContactRequired = false,
+                paymentIntentId = None,
+                paymentStatus = Some("failed"),
+                paymentIntentClientSecret = None,
+                portalSessionUrl = None,
+                portalSessionId = None
+              ))
+          }
+        case Left(error) =>
+          logger.error(s"❌ Subscription creation failed for customer $customerId: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Subscription creation failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = None,
+            paymentStatus = Some("failed"),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Confirm payment and activate subscription after frontend confirmation
+   */
+  def confirmPaymentAndActivateSubscription(
+    customerId: String, 
+    subscriptionId: String, 
+    paymentIntentId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Confirming payment and activating subscription - Customer: $customerId, Subscription: $subscriptionId, PaymentIntent: $paymentIntentId")
+    
+    for {
+      // Step 1: Verify PaymentIntent is confirmed and succeeded
+      paymentIntentResult <- stripeClient.retrievePaymentIntent(paymentIntentId)
+      
+      // Step 2: Create portal session for successful payments
+      finalResponse <- paymentIntentResult match {
+        case Right(paymentIntent) if paymentIntent.getStatus == "succeeded" =>
+          logger.info(s"✅ Payment confirmed successfully - creating portal session")
+          createPortalSessionForResponse(customerId, subscriptionId, "Payment confirmed and subscription activated successfully")
+        case Right(paymentIntent) =>
+          logger.error(s"❌ PaymentIntent not succeeded: ${paymentIntent.getStatus}")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = Some(subscriptionId),
+            hostedPageUrl = None,
+            message = s"Payment not confirmed: ${paymentIntent.getStatus}",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some(paymentIntent.getStatus),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+        case Left(error) =>
+          logger.error(s"❌ Failed to retrieve PaymentIntent: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = Some(subscriptionId),
+            hostedPageUrl = None,
+            message = s"Payment verification failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("verification_failed"),
+            paymentIntentClientSecret = None,
             portalSessionUrl = None,
             portalSessionId = None
           ))
