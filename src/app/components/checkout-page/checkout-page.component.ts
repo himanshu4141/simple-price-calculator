@@ -641,8 +641,11 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         if (response.success) {
           console.log('✅ Checkout successful:', response);
           
-          // Check if payment needs frontend confirmation
-          if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation') {
+          // Check if payment needs frontend 3DS handling
+          if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_action') {
+            console.log('🔐 Payment requires 3D Secure authentication');
+            this.handle3DSecureAuthentication(response);
+          } else if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation') {
             console.log('🔄 Payment requires frontend confirmation');
             this.confirmPaymentOnFrontend(response);
           } else {
@@ -959,6 +962,57 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (error) {
       console.error('❌ Error notifying backend of payment confirmation:', error);
       this.paymentErrors = 'Payment confirmation failed. Please contact support.';
+      this.isProcessingPayment = false;
+    }
+  }
+
+  /**
+   * Handle 3D Secure authentication for PaymentIntent
+   */
+  private async handle3DSecureAuthentication(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.paymentIntentClientSecret) {
+      console.error('❌ No payment intent client secret provided for 3DS');
+      this.errorMessage = '3D Secure authentication failed. Please try again.';
+      return;
+    }
+
+    this.isProcessingPayment = true;
+    this.paymentErrors = '';
+
+    try {
+      console.log('🔐 Starting 3D Secure authentication...');
+      
+      // Handle 3D Secure authentication using Stripe
+      const { error, paymentIntent } = await this.stripeService.handle3DSecureAuthentication(
+        checkoutResponse.paymentIntentClientSecret
+      );
+
+      if (error) {
+        console.error('❌ 3D Secure authentication failed:', error);
+        this.paymentErrors = error.message || '3D Secure authentication failed. Please try again.';
+        this.isProcessingPayment = false;
+        return;
+      }
+
+      if (paymentIntent) {
+        console.log('✅ 3D Secure authentication completed, status:', paymentIntent.status);
+        
+        if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded') {
+          // Authentication successful, notify backend
+          await this.notifyBackendOfPaymentConfirmation(checkoutResponse);
+        } else {
+          console.error('❌ PaymentIntent still requires action:', paymentIntent.status);
+          this.paymentErrors = 'Payment authentication incomplete. Please try again.';
+          this.isProcessingPayment = false;
+        }
+      } else {
+        console.error('❌ No PaymentIntent returned from 3DS authentication');
+        this.paymentErrors = '3D Secure authentication failed. Please try again.';
+        this.isProcessingPayment = false;
+      }
+    } catch (error) {
+      console.error('❌ Error during 3D Secure authentication:', error);
+      this.paymentErrors = '3D Secure authentication failed. Please try again.';
       this.isProcessingPayment = false;
     }
   }

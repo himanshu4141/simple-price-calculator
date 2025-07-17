@@ -868,4 +868,32 @@ export class StripeService {
       throw error;
     }
   }
+
+  /**
+   * Handle 3D Secure authentication for existing PaymentIntent
+   */
+  async handle3DSecureAuthentication(clientSecret: string): Promise<any> {
+    if (!this.stripe) {
+      throw new Error('Stripe not initialized');
+    }
+
+    console.log('🔐 Handling 3D Secure authentication...');
+
+    // Use handleCardAction to handle 3DS authentication
+    const { error, paymentIntent } = await this.stripe.handleCardAction({
+      clientSecret
+    });
+
+    if (error) {
+      console.error('❌ 3D Secure authentication failed:', error);
+      return { error };
+    }
+
+    if (paymentIntent) {
+      console.log('✅ 3D Secure authentication completed, PaymentIntent status:', paymentIntent.status);
+      return { paymentIntent };
+    }
+
+    return { error: { message: 'Unknown error during 3D Secure authentication' } };
+  }
 }

@@ -214,6 +214,72 @@ class StripeClient(config: StripeConfig)(implicit ec: ExecutionContext) extends 
   }
 
   /**
+   * Create a PaymentIntent for frontend confirmation with Chargebee integration
+   * This creates a PaymentIntent ready for frontend 3DS handling
+   */
+  def createPaymentIntentForChargebee(
+    amount: Long, // Amount in cents
+    currency: String,
+    paymentMethodId: String,
+    captureMethod: String = "manual",
+    setupFutureUsage: String = "off_session"
+  ): Future[Either[String, PaymentIntent]] = {
+    Future {
+      Try {
+        logger.info(s"Creating PaymentIntent for Chargebee frontend flow: amount=$amount cents, currency=$currency, paymentMethod=$paymentMethodId")
+        
+        val paramsBuilder = PaymentIntentCreateParams.builder()
+          .setAmount(amount)
+          .setCurrency(currency.toLowerCase)
+          .setPaymentMethod(paymentMethodId)
+          .setConfirm(false) // Don't confirm immediately - let frontend handle 3DS
+          .setCaptureMethod(PaymentIntentCreateParams.CaptureMethod.MANUAL) // Let Chargebee handle capture
+          .setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL) // Manual confirmation for frontend
+        
+        // Disable redirects for frontend handling
+        paramsBuilder.setAutomaticPaymentMethods(
+          PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+            .setEnabled(true)
+            .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
+            .build()
+        )
+        
+        // Set setup future usage
+        val usageEnum = setupFutureUsage.toLowerCase match {
+          case "off_session" => PaymentIntentCreateParams.SetupFutureUsage.OFF_SESSION
+          case "on_session" => PaymentIntentCreateParams.SetupFutureUsage.ON_SESSION
+          case _ => PaymentIntentCreateParams.SetupFutureUsage.OFF_SESSION
+        }
+        paramsBuilder.setSetupFutureUsage(usageEnum)
+        
+        // Add metadata for tracking
+        paramsBuilder.putMetadata("source", "nitro-price-calculator")
+        paramsBuilder.putMetadata("integration", "chargebee-stripe-frontend")
+        paramsBuilder.putMetadata("flow", "frontend-confirmation")
+        
+        val paymentIntent = PaymentIntent.create(paramsBuilder.build())
+        logger.info(s"✅ PaymentIntent created for frontend confirmation: ${paymentIntent.getId}, status: ${paymentIntent.getStatus}")
+        
+        // Should be in requires_confirmation state for frontend handling
+        if (paymentIntent.getStatus == "requires_confirmation") {
+          logger.info(s"✅ PaymentIntent ready for frontend confirmation")
+        } else {
+          logger.warn(s"⚠️ Unexpected PaymentIntent status: ${paymentIntent.getStatus}")
+        }
+        
+        paymentIntent
+        
+      } match {
+        case Success(paymentIntent) => Right(paymentIntent)
+        case Failure(exception) =>
+          val errorMsg = s"Failed to create PaymentIntent for frontend: ${exception.getMessage}"
+          logger.error(errorMsg, exception)
+          Left(errorMsg)
+      }
+    }
+  }
+
+  /**
    * Retrieve a PaymentIntent by ID
    */
   def retrievePaymentIntent(paymentIntentId: String): Future[Either[String, PaymentIntent]] = {
