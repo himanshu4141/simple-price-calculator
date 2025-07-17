@@ -382,7 +382,7 @@ class ApiRoutes(
     }
   }
 
-  private val paymentRoutes: Route = new PaymentRoutes(stripeClient).routes
+  private val paymentRoutes: Route = new PaymentRoutes(stripeClient, checkoutService).routes
 
   private val healthRoutes: Route = {
     path("health") {
