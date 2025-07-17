@@ -337,33 +337,67 @@ export class StripeService {
    * Collect data from all Elements
    */
   async collectElementData(): Promise<StripeElementData> {
+    console.log('📍 Starting collectElementData...');
     const data: StripeElementData = {};
 
     try {
       // Skip email collection - will be handled by form field
       // Collect address from Address Element
+      console.log('📍 Checking Address Element availability:', !!this.addressElement);
       if (this.addressElement) {
-        const addressValue = await this.addressElement.getValue();
-        if (addressValue.complete && addressValue.value) {
-          data.address = addressValue.value;
-          console.log('📍 Address data collected:', addressValue.value);
-        } else {
-          throw new Error('Complete billing address is required. Please fill in all required address fields.');
+        console.log('📍 Getting address value with timeout protection...');
+        
+        try {
+          // Add timeout to prevent hanging
+          const addressValuePromise = this.addressElement.getValue();
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Address element getValue() timed out after 5 seconds')), 5000);
+          });
+          
+          const addressValue = await Promise.race([addressValuePromise, timeoutPromise]) as any;
+          console.log('📍 Address value response:', addressValue);
+          
+          if (addressValue.complete && addressValue.value) {
+            data.address = addressValue.value;
+            console.log('📍 Address data collected:', addressValue.value);
+          } else {
+            console.warn('⚠️ Address element incomplete:', { complete: addressValue.complete, value: addressValue.value });
+            
+            // Check if we have minimal required data
+            if (addressValue.value && addressValue.value.address) {
+              console.log('📍 Using partially complete address data');
+              data.address = addressValue.value;
+            } else if (addressValue.value) {
+              // Sometimes the address structure is different
+              console.log('📍 Using available address data with different structure');
+              data.address = addressValue;
+            } else {
+              throw new Error('Complete billing address is required. Please fill in all required address fields.');
+            }
+          }
+        } catch (timeoutError) {
+          console.error('❌ Address element getValue() failed:', timeoutError);
+          
+          // When address element fails, we cannot proceed with Stripe Elements
+          // because the elements will be in an invalid state
+          throw new Error('Address validation failed. Please ensure all address fields are completed correctly and try again.');
         }
       } else {
+        console.warn('⚠️ Address Element not available');
         throw new Error('Address Element is required but not initialized');
       }
 
       // For Payment Element, we need to use submit() to get the payment method
+      console.log('📍 Checking Payment Element availability:', !!this.paymentElement);
       if (this.paymentElement) {
-        console.log('� Payment Element is available - payment method will be created during form submission');
+        console.log('💳 Payment Element is available - payment method will be created during form submission');
         // Note: The actual payment method creation happens during form submission
         // We'll need to call this.elements.submit() and then stripe.confirmPayment()
       } else {
         throw new Error('Payment Element is required but not initialized');
       }
 
-      console.log('�📊 Element data collected successfully:', data);
+      console.log('✅ Element data collected successfully:', data);
       return data;
     } catch (error) {
       console.error('❌ Error collecting element data:', error);
@@ -585,35 +619,67 @@ export class StripeService {
     console.log('🔧 Submitting elements and creating payment method...');
 
     try {
-      // First collect element data (address only, email comes from parameter)
-      const elementData = await this.collectElementData();
+      // First, check if elements are in a good state
+      console.log('📍 Step 0: Checking elements readiness...');
+      const readinessCheck = await this.checkElementsReadiness();
+      if (!readinessCheck.ready) {
+        const issuesList = readinessCheck.issues.join('; ');
+        throw new Error(`Payment form is not ready: ${issuesList}`);
+      }
+      console.log('✅ Elements are ready for processing');
+
+      // Collect element data (address only, email comes from parameter)
+      console.log('📍 Step 1: Collecting element data...');
+      let elementData: StripeElementData;
+      
+      try {
+        elementData = await this.collectElementData();
+        console.log('✅ Element data collected:', elementData);
+      } catch (elementError: any) {
+        console.error('❌ Element data collection failed:', elementError);
+        
+        // If element data collection fails, it means the Stripe Elements are in an invalid state
+        // This usually happens when the address element times out or fails validation
+        throw new Error(`Payment form validation failed: ${elementError?.message || 'Unknown error'}`);
+      }
       
       // Add email to element data
       elementData.email = email.trim();
 
       // Submit the elements to validate them
+      console.log('📍 Step 2: Submitting elements for validation...');
       const {error: submitError} = await this.elements.submit();
       if (submitError) {
         console.error('❌ Elements validation failed:', submitError);
         throw new Error(submitError.message || 'Payment form validation failed');
       }
+      console.log('✅ Elements submitted successfully');
 
       // Create payment method from the Payment Element
+      console.log('📍 Step 3: Creating payment method...');
+      
+      // Build billing details, handling case where address might be null
+      const billingDetails: any = {
+        email: elementData.email
+      };
+      
+      // Add address data if available from Stripe Elements
+      if (elementData.address) {
+        billingDetails.name = elementData.address.name;
+        billingDetails.address = {
+          line1: elementData.address.address?.line1 || elementData.address.line1,
+          line2: elementData.address.address?.line2 || elementData.address.line2,
+          city: elementData.address.address?.city || elementData.address.city,
+          state: elementData.address.address?.state || elementData.address.state,
+          postal_code: elementData.address.address?.postal_code || elementData.address.postal_code,
+          country: elementData.address.address?.country || elementData.address.country,
+        };
+      }
+      
       const {error: paymentMethodError, paymentMethod} = await this.stripe.createPaymentMethod({
         elements: this.elements,
         params: {
-          billing_details: {
-            email: elementData.email,
-            name: elementData.address?.name,
-            address: {
-              line1: elementData.address?.address?.line1,
-              line2: elementData.address?.address?.line2,
-              city: elementData.address?.address?.city,
-              state: elementData.address?.address?.state,
-              postal_code: elementData.address?.address?.postal_code,
-              country: elementData.address?.address?.country,
-            }
-          }
+          billing_details: billingDetails
         }
       });
 
@@ -662,5 +728,144 @@ export class StripeService {
     };
     
     return localeToCountryMap[locale] || null;
+  }
+
+  /**
+   * Get value from Address Element
+   */
+  async getAddressElementValue(): Promise<any> {
+    if (!this.addressElement) {
+      throw new Error('Address Element not initialized');
+    }
+
+    try {
+      const addressValue = await this.addressElement.getValue();
+      if (addressValue.complete && addressValue.value) {
+        console.log('📍 Address Element value retrieved:', addressValue.value);
+        return addressValue.value;
+      } else {
+        console.warn('⚠️ Address Element is incomplete');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error getting Address Element value:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate that address element is in a valid state for payment processing
+   */
+  async validateAddressElementState(): Promise<boolean> {
+    console.log('🔍 Validating address element state...');
+    
+    if (!this.addressElement) {
+      console.warn('⚠️ Address element not available');
+      return false;
+    }
+
+    try {
+      // Try to get the current value with a short timeout
+      const addressValuePromise = this.addressElement.getValue();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Address validation timeout')), 3000);
+      });
+      
+      const addressValue = await Promise.race([addressValuePromise, timeoutPromise]) as any;
+      
+      // Check if we have at least some address data
+      const hasMinimalData = addressValue && (
+        addressValue.complete || 
+        (addressValue.value && (
+          addressValue.value.address || 
+          addressValue.value.line1 || 
+          addressValue.value.city
+        ))
+      );
+      
+      console.log('📍 Address element validation result:', {
+        hasValue: !!addressValue,
+        complete: addressValue?.complete,
+        hasMinimalData,
+        value: addressValue?.value
+      });
+      
+      return hasMinimalData;
+    } catch (error) {
+      console.error('❌ Address element validation failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if Stripe Elements are ready for payment processing
+   */
+  async checkElementsReadiness(): Promise<{ready: boolean, issues: string[]}> {
+    console.log('🔍 Checking elements readiness...');
+    const issues: string[] = [];
+    
+    if (!this.stripe) {
+      issues.push('Stripe not initialized');
+    }
+    
+    if (!this.elements) {
+      issues.push('Stripe Elements not created');
+    }
+    
+    if (!this.paymentElement) {
+      issues.push('Payment Element not available');
+    }
+    
+    if (!this.addressElement) {
+      issues.push('Address Element not available');
+    } else {
+      // Check address element state
+      const addressValid = await this.validateAddressElementState();
+      if (!addressValid) {
+        issues.push('Address Element is not in a valid state - please complete all required address fields');
+      }
+    }
+    
+    const ready = issues.length === 0;
+    console.log('📍 Elements readiness check:', { ready, issues });
+    
+    return { ready, issues };
+  }
+
+  public getStripeInstance(): Stripe | null {
+    return this.stripe;
+  }
+
+  /**
+   * Refresh the address element if it's in a bad state
+   */
+  async refreshAddressElement(containerId: string, options?: StripeAddressElementOptions, localizationDefaults?: { country?: string; locale?: string; }): Promise<void> {
+    console.log('🔄 Refreshing address element...');
+    
+    try {
+      // Unmount and destroy existing element
+      if (this.addressElement) {
+        console.log('📍 Cleaning up existing address element...');
+        try {
+          this.addressElement.unmount();
+          this.addressElement.destroy();
+        } catch (cleanupError) {
+          console.warn('⚠️ Error during address element cleanup:', cleanupError);
+        }
+        this.addressElement = null;
+      }
+      
+      // Small delay to ensure DOM is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Recreate the address element
+      console.log('📍 Recreating address element...');
+      await this.createAddressElement(containerId, options, localizationDefaults);
+      
+      console.log('✅ Address element refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing address element:', error);
+      throw error;
+    }
   }
 }

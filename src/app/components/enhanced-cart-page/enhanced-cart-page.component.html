@@ -1,0 +1,402 @@
+<div class="enhanced-cart-page">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-section">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p>Loading your cart...</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="loadingError" class="error-section">
+    <div class="error-content">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Unable to load cart</h3>
+      <p>{{ loadingError }}</p>
+      <button mat-raised-button color="primary" (click)="returnToPricing()">
+        Return to Pricing
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Cart Content -->
+  <div *ngIf="!isLoading && !loadingError" class="cart-content">
+    
+    <!-- Cart Header -->
+    <div class="cart-header">
+      <div class="header-content">
+        <h1 class="nitro-heading">Your Cart</h1>
+        <div class="cart-navigation">
+          <button mat-stroked-button (click)="returnToPricing()" class="back-btn">
+            <mat-icon>arrow_back</mat-icon>
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy Now Mode Banner -->
+    <div *ngIf="isBuyNowMode" class="buy-now-banner">
+      <mat-card class="info-card">
+        <mat-card-content>
+          <div class="banner-content">
+            <mat-icon class="cart-icon">shopping_cart</mat-icon>
+            <div class="message">
+              <h3>Ready to Purchase</h3>
+              <p>Review your selection, add any recommended products, and complete your purchase.</p>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="cart-layout">
+      
+      <!-- Left Column: Cart Items & Recommendations -->
+      <div class="left-column">
+        
+        <!-- Cart Items Section -->
+        <div class="cart-items-section">
+          <div class="cart-items-card">
+            <h2>Your Items</h2>
+            <div class="cart-items-content">
+              <div *ngFor="let item of cartItems" class="cart-item compact">
+                <div class="item-header">
+                  <div class="item-info">
+                    <h4 class="product-name">{{ item.productFamily }}</h4>
+                    <p class="plan-name">{{ item.planName }}</p>
+                  </div>
+                  <div class="item-price-header">
+                    <span class="annual-price">{{ formatPrice(item.price) }}/year</span>
+                    <button mat-icon-button (click)="removeCartItem(item.id)" class="remove-btn">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="item-details compact-details">
+                  <!-- Seats -->
+                  <div class="quantity-control">
+                    <label>Seats</label>
+                    <small class="price-hint">{{ formatPrice(getSeatPrice(item)) }} per seat</small>
+                    <div class="input-group">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'seats', item.seats - 1)"
+                              [disabled]="item.seats <= 1">
+                        <mat-icon>remove</mat-icon>
+                      </button>
+                      <input type="number" 
+                             [value]="item.seats" 
+                             (change)="updateCartItemQuantity(item.id, 'seats', $event.target.value)"
+                             min="1" 
+                             class="quantity-input">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'seats', item.seats + 1)">
+                        <mat-icon>add</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Packages (Sign plans only) -->
+                  <div *ngIf="item.canModifyPackages" class="quantity-control">
+                    <label>Additional Packages</label>
+                    <small class="price-hint">{{ formatPrice(getPackagePrice(item.planName)) }} each</small>
+                    <div class="input-group">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'packages', (item.packages || 0) - 1)"
+                              [disabled]="(item.packages || 0) <= 0">
+                        <mat-icon>remove</mat-icon>
+                      </button>
+                      <input type="number" 
+                             [value]="item.packages || 0" 
+                             (change)="updateCartItemQuantity(item.id, 'packages', $event.target.value)"
+                             min="0" 
+                             class="quantity-input">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'packages', (item.packages || 0) + 1)">
+                        <mat-icon>add</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- API Calls (Sign Enterprise only) -->
+                  <div *ngIf="item.canModifyApiCalls" class="quantity-control">
+                    <label>Additional API Calls</label>
+                    <small class="price-hint">{{ formatPrice(getApiPrice(item.planName)) }} per call</small>
+                    <div class="input-group">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'apiCalls', (item.apiCalls || 0) - 100)"
+                              [disabled]="(item.apiCalls || 0) <= 0">
+                        <mat-icon>remove</mat-icon>
+                      </button>
+                      <input type="number" 
+                             [value]="item.apiCalls || 0" 
+                             (change)="updateCartItemQuantity(item.id, 'apiCalls', $event.target.value)"
+                             min="0" 
+                             step="100"
+                             class="quantity-input">
+                      <button mat-icon-button 
+                              (click)="updateCartItemQuantity(item.id, 'apiCalls', (item.apiCalls || 0) + 100)">
+                        <mat-icon>add</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cart Total Summary -->
+              <div *ngIf="cartItems.length > 0" class="cart-total-summary">
+                <div class="total-row">
+                  <span class="total-label">Subtotal ({{ cartItems.length }} items)</span>
+                  <span class="total-price">{{ formatPrice(subtotal) }}/year</span>
+                </div>
+                <div *ngIf="taxAmount > 0" class="total-row tax-row">
+                  <span class="total-label">
+                    <mat-icon inline="true">account_balance</mat-icon>
+                    Estimated Tax
+                  </span>
+                  <span class="total-price">{{ formatPrice(taxAmount) }}</span>
+                </div>
+                <div *ngIf="taxAmount === 0 && cartItems.length > 0" class="total-row tax-row tax-pending">
+                  <span class="total-label">
+                    <mat-icon inline="true">account_balance</mat-icon>
+                    Tax (calculated at checkout)
+                  </span>
+                  <span class="total-price">{{ formatPrice(0) }}</span>
+                </div>
+                <div class="total-row final-total">
+                  <span class="total-label">
+                    <mat-icon inline="true">receipt</mat-icon>
+                    Annual Total
+                  </span>
+                  <span class="total-price">{{ formatPrice(finalTotal) }}/year</span>
+                </div>
+              </div>
+
+              <!-- Cart Empty State -->
+              <div *ngIf="cartItems.length === 0" class="empty-cart">
+                <mat-icon>shopping_cart</mat-icon>
+                <p>Your cart is empty</p>
+                <button mat-raised-button color="primary" (click)="returnToPricing()">
+                  Browse Plans
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coupon Section -->
+        <div class="coupon-section">
+          <mat-card class="coupon-card">
+            <mat-card-header>
+              <mat-card-title>Promo Code</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngIf="!appliedCoupon" class="coupon-input">
+                <mat-form-field appearance="outline" class="coupon-field">
+                  <mat-label>Enter promo code</mat-label>
+                  <input matInput 
+                         [(ngModel)]="couponCode" 
+                         placeholder="SAVE10"
+                         [disabled]="isCouponLoading">
+                  <button mat-icon-button 
+                          matSuffix 
+                          (click)="applyCoupon()"
+                          [disabled]="!couponCode.trim() || isCouponLoading">
+                    <mat-icon *ngIf="!isCouponLoading">add</mat-icon>
+                    <mat-spinner *ngIf="isCouponLoading" diameter="20"></mat-spinner>
+                  </button>
+                </mat-form-field>
+                <div *ngIf="couponError" class="coupon-error">
+                  <mat-icon>error</mat-icon>
+                  <span>{{ couponError }}</span>
+                </div>
+              </div>
+
+              <div *ngIf="appliedCoupon" class="applied-coupon">
+                <div class="coupon-info">
+                  <mat-icon>check_circle</mat-icon>
+                  <div>
+                    <strong>{{ appliedCoupon.code }}</strong>
+                    <p>{{ appliedCoupon.description }}</p>
+                  </div>
+                </div>
+                <button mat-icon-button (click)="removeCoupon()" class="remove-coupon">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Cross-sell Recommendations -->
+        <div *ngIf="crossSellRecommendations.length > 0" class="cross-sell-section">
+          <mat-card class="recommendations-card">
+            <mat-card-header>
+              <mat-card-title>Complete Your Workflow</mat-card-title>
+              <mat-card-subtitle>Add these complementary products</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngFor="let recommendation of crossSellRecommendations" class="recommendation-item">
+                <div class="recommendation-info">
+                  <h4>{{ recommendation.productFamily }} - {{ recommendation.planName }}</h4>
+                  <p class="recommendation-reason">{{ recommendation.reason }}</p>
+                  <ul class="benefits-list">
+                    <li *ngFor="let benefit of recommendation.benefits">{{ benefit }}</li>
+                  </ul>
+                </div>
+                <div class="recommendation-action">
+                  <div class="price">{{ formatPrice(recommendation.price) }}/year</div>
+                  <button mat-raised-button 
+                          color="primary" 
+                          (click)="addCrossSellItem(recommendation)"
+                          class="add-btn">
+                    <mat-icon>add</mat-icon>
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Upsell Suggestions -->
+        <div *ngIf="upsellSuggestions.length > 0" class="upsell-section">
+          <mat-card class="recommendations-card">
+            <mat-card-header>
+              <mat-card-title>Upgrade Your Plan</mat-card-title>
+              <mat-card-subtitle>Get more features and capabilities</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngFor="let suggestion of upsellSuggestions" class="recommendation-item">
+                <div class="recommendation-info">
+                  <h4>Upgrade to {{ suggestion.suggestedPlan }}</h4>
+                  <ul class="benefits-list">
+                    <li *ngFor="let benefit of suggestion.benefits">{{ benefit }}</li>
+                  </ul>
+                </div>
+                <div class="recommendation-action">
+                  <div class="price-increase">+{{ formatPrice(suggestion.priceIncrease) }}/year</div>
+                  <button mat-raised-button 
+                          color="accent" 
+                          (click)="upgradeToUpsell(suggestion)"
+                          class="upgrade-btn">
+                    <mat-icon>upgrade</mat-icon>
+                    Upgrade
+                  </button>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Add-on Options -->
+        <div *ngIf="addonOptions.length > 0" class="addons-section">
+          <mat-card class="recommendations-card">
+            <mat-card-header>
+              <mat-card-title>Add More Capacity</mat-card-title>
+              <mat-card-subtitle>Scale up your usage</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngFor="let addon of addonOptions" class="recommendation-item">
+                <div class="recommendation-info">
+                  <h4>{{ addon.name }}</h4>
+                  <p>{{ addon.description }}</p>
+                  <p class="addon-suggestion">
+                    Current: {{ addon.currentQuantity }} | 
+                    Suggested: +{{ addon.suggestedQuantity }}
+                  </p>
+                </div>
+                <div class="recommendation-action">
+                  <div class="price">{{ formatPrice(addon.unitPrice * addon.suggestedQuantity) }}</div>
+                  <button mat-raised-button 
+                          (click)="addAddon(addon)"
+                          class="add-btn">
+                    <mat-icon>add</mat-icon>
+                    Add {{ addon.suggestedQuantity }}
+                  </button>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Customer Information -->
+      <div class="right-column">
+        
+        <!-- Customer Information Form -->
+        <div class="customer-info-section">
+          <mat-card class="customer-info-card">
+            <mat-card-header>
+              <mat-card-title>Customer Information</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              
+              <!-- Email Input -->
+              <div class="email-section">
+                <mat-form-field appearance="outline" class="email-field">
+                  <mat-label>Email Address</mat-label>
+                  <input matInput 
+                         type="email"
+                         [(ngModel)]="customerEmail"
+                         (ngModelChange)="onEmailChange()"
+                         placeholder="you@company.com"
+                         required>
+                  <mat-icon matSuffix>email</mat-icon>
+                </mat-form-field>
+                <p class="email-note">We'll send your receipt and subscription details here</p>
+              </div>
+
+              <!-- Billing Address -->
+              <div class="address-section">
+                <h4>Billing Address</h4>
+                <div id="address-element" class="stripe-element">
+                  <!-- Stripe Address Element will be mounted here -->
+                </div>
+                <div *ngIf="!isAddressElementReady" class="element-loading">
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Loading address form...</span>
+                </div>
+              </div>
+
+              <!-- Payment Method -->
+              <div class="payment-section">
+                <h4>Payment Method</h4>
+                <div id="payment-element" class="stripe-element">
+                  <!-- Stripe Payment Element will be mounted here -->
+                </div>
+                <div *ngIf="!isPaymentElementReady" class="element-loading">
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Loading payment form...</span>
+                </div>
+              </div>
+
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Checkout Actions -->
+        <div class="checkout-actions">
+          <button mat-raised-button 
+                  color="primary" 
+                  size="large"
+                  (click)="proceedToConfirmation()"
+                  [disabled]="!isFormValid"
+                  class="checkout-btn">
+            <mat-icon>credit_card</mat-icon>
+            Review & Confirm Order
+          </button>
+          
+          <div class="security-info">
+            <mat-icon>security</mat-icon>
+            <span>Secure checkout powered by Stripe</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

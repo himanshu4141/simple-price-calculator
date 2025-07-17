@@ -24,7 +24,8 @@ import { LocationService, LocationInfo } from '../services/location.service';
         (click)="closeDropdown()">
       </div>
 
-      <div class="currency-dropdown" [class.open]="isDropdownOpen">
+      <!-- Dropdown (shown when open) -->
+      <div class="currency-dropdown" *ngIf="isDropdownOpen">
         <div class="dropdown-header">
           <span class="dropdown-title">Select Currency</span>
           <div class="location-info" *ngIf="detectedLocation">
@@ -37,10 +38,12 @@ import { LocationService, LocationInfo } from '../services/location.service';
         
         <ul class="currency-list" role="listbox">
           <li 
-            *ngFor="let currency of supportedCurrencies"
+            *ngFor="let currency of supportedCurrencies; trackBy: trackByCurrency"
             class="currency-option"
             [class.selected]="currency.code === currentCurrency?.code"
-            (click)="selectCurrency(currency)">
+            (click)="selectCurrency(currency, $event)"
+            role="option"
+            [attr.aria-selected]="currency.code === currentCurrency?.code">
             <span class="currency-flag">{{ currency.flag }}</span>
             <div class="currency-info">
               <span class="currency-code">{{ currency.code }}</span>
@@ -111,34 +114,35 @@ import { LocationService, LocationInfo } from '../services/location.service';
       left: 0;
       right: 0;
       bottom: 0;
-      z-index: 998;
+      z-index: 9999;
+      background: transparent;
     }
 
     .currency-dropdown {
       position: absolute;
       top: 100%;
       left: 0;
-      right: 0;
       margin-top: 4px;
       background: #ffffff;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 9999;
-      min-width: 200px;
+      z-index: 10000;
+      min-width: 240px;
       max-height: 300px;
       overflow: hidden;
-      display: none;
+      animation: dropdownFadeIn 0.2s ease-out;
     }
 
-    .currency-dropdown.open {
-      display: block;
-      animation: fadeIn 0.2s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .dropdown-header {
@@ -267,6 +271,15 @@ export class CurrencySelectorComponent implements OnInit, OnDestroy {
       this.currentCurrency = this.localizationService.currentCurrencyInfo;
     } catch (error) {
       console.error('❌ Error initializing currency selector:', error);
+      // Fallback to hardcoded currencies
+      this.supportedCurrencies = [
+        { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸' },
+        { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
+        { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧' },
+        { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', flag: '🇨🇦' },
+        { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', flag: '🇦🇺' }
+      ];
+      this.currentCurrency = this.supportedCurrencies[0];
     }
   }
 
@@ -309,7 +322,10 @@ export class CurrencySelectorComponent implements OnInit, OnDestroy {
     this.isDropdownOpen = false;
   }
 
-  selectCurrency(currency: CurrencyInfo): void {
+  selectCurrency(currency: CurrencyInfo, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
     if (!this.currentCurrency || currency.code !== this.currentCurrency.code) {
       this.localizationService.setCurrency(currency.code);
     }

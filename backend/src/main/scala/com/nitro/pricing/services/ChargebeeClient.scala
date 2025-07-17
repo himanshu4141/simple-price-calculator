@@ -516,4 +516,50 @@ class ChargebeeClient(config: ChargebeeConfig)(implicit ec: ExecutionContext, ba
       ProductStructure(items, itemPrices)
     }
   }
+
+  /**
+   * Create a portal session for customer subscription management
+   */
+  def createPortalSession(customerId: String, redirectUrl: String = "https://your-website.com/account"): Future[Either[String, ChargebeePortalSession]] = {
+    logger.info(s"Creating portal session for customer: $customerId")
+    
+    val requestBody = Map(
+      "redirect_url" -> redirectUrl,
+      "customer[id]" -> customerId
+    )
+
+    val request = basicRequest
+      .post(baseUri.addPath("portal_sessions"))
+      .header("Authorization", authHeader)
+      .header("Content-Type", "application/x-www-form-urlencoded")
+      .body(requestBody.map { case (k, v) => s"$k=$v" }.mkString("&"))
+      .response(asJson[Json])
+      .readTimeout(config.timeout)
+
+    backend.send(request).map { response =>
+      response.body match {
+        case Right(json) =>
+          logger.debug(s"Portal session response: ${json.spaces2}")
+          
+          // Parse the portal session from the response
+          val cursor = json.hcursor
+          cursor.downField("portal_session").as[ChargebeePortalSession] match {
+            case Right(portalSession) =>
+              logger.info(s"✅ Portal session created successfully: ${portalSession.id}")
+              Right(portalSession)
+            case Left(decodingError) =>
+              logger.error(s"❌ Failed to decode portal session response: $decodingError")
+              logger.debug(s"Response body: ${json.spaces2}")
+              Left(s"Failed to decode portal session: ${decodingError.getMessage}")
+          }
+        case Left(error) =>
+          logger.error(s"❌ Portal session creation failed: $error")
+          Left(s"Portal session creation failed: $error")
+      }
+    }.recover {
+      case ex =>
+        logger.error(s"❌ Error creating portal session: ${ex.getMessage}")
+        Left(s"Error creating portal session: ${ex.getMessage}")
+    }
+  }
 }

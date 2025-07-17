@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { Subject, combineLatest } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
 
@@ -12,6 +13,7 @@ import {
   PricingApiResponse
 } from '../../services/pricing.service';
 import { LocalizationService } from '../../services/localization.service';
+import { SalesContactModalComponent } from '../sales-contact-modal/sales-contact-modal.component';
 
 interface PriceBreakdown {
   readonly basePrice: number;
@@ -60,7 +62,8 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
     private readonly pricingService: PricingService,
     private readonly localizationService: LocalizationService,
     private readonly route: ActivatedRoute,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -285,7 +288,7 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
     if (!selection.selectedPlan) return;
 
     const queryParams = this.buildSingleCartQueryParams(familyName, selection);
-    this.router.navigate(['/cart'], { queryParams });
+    this.router.navigate(['/enhanced-cart'], { queryParams });
   }
 
   private buildSingleCartQueryParams(familyName: string, selection: ProductSelection): Record<string, string | number> {
@@ -324,7 +327,7 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
   // Navigate to cart with all configured selections
   addAllToCart(): void {
     const params = this.buildAllCartQueryParams();
-    this.router.navigate(['/cart'], { queryParams: params });
+    this.router.navigate(['/enhanced-cart'], { queryParams: params });
   }
 
   private buildAllCartQueryParams(): Record<string, string | number> {
@@ -367,5 +370,38 @@ export class PriceCalculatorComponent implements OnInit, OnDestroy {
     
     this.selectedTerm = '1year';
     this.totalPrice = 0;
+  }
+
+  /**
+   * Open contact sales modal for 3-year terms
+   */
+  openContactSalesModal(): void {
+    // Collect selected products for context
+    const selectedProducts = Object.keys(this.selections)
+      .filter(familyName => this.selections[familyName].selectedPlan)
+      .map(familyName => ({
+        family: familyName,
+        plan: this.selections[familyName].selectedPlan,
+        seats: this.selections[familyName].seats,
+        packages: this.selections[familyName].packages || 0,
+        apiCalls: this.selections[familyName].apiCalls || 0
+      }));
+
+    const dialogRef = this.dialog.open(SalesContactModalComponent, {
+      width: '500px',
+      data: {
+        selectedProducts: selectedProducts,
+        term: this.selectedTerm,
+        totalPrice: this.totalPrice,
+        source: 'calculator'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.submitted) {
+        // Handle successful form submission if needed
+        console.log('Sales contact form submitted:', result);
+      }
+    });
   }
 }

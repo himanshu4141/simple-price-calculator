@@ -1,0 +1,153 @@
+<div class="checkout-success">
+  <!-- Success Header -->
+  <div class="success-header">
+    <div class="container">
+      <div class="success-content">
+        <div class="success-icon">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <h1>Order Confirmed!</h1>
+        <p class="success-message">
+          Thank you for your purchase. Your subscription has been successfully created.
+        </p>
+        
+        <div *ngIf="orderData" class="order-summary">
+          <div class="confirmation-number">
+            <strong>Confirmation Number:</strong> {{ orderData.confirmationNumber }}
+          </div>
+          <div class="order-total">
+            <strong>Total:</strong> {{ formattedTotal }}
+          </div>
+          <div class="order-date">
+            <strong>Order Date:</strong> {{ formattedOrderDate }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="success-main">
+    <div class="container">
+      <div class="content-grid">
+        
+        <!-- Next Steps -->
+        <div class="next-steps-card">
+          <h2>What's Next?</h2>
+          <div class="steps-list">
+            <div *ngFor="let step of getNextSteps(); let i = index" class="step-item">
+              <div class="step-number">{{ i + 1 }}</div>
+              <div class="step-content">{{ step }}</div>
+            </div>
+          </div>
+          
+          <div class="action-buttons">
+            <button 
+              mat-raised-button 
+              color="primary"
+              class="portal-button"
+              (click)="goToPortal()"
+              *ngIf="orderData?.portalSessionUrl">
+              <mat-icon>settings</mat-icon>
+              Manage Subscription
+            </button>
+            
+            <!-- Show message if portal URL is not available -->
+            <div *ngIf="!orderData?.portalSessionUrl" class="portal-message">
+              <mat-icon>info</mat-icon>
+              <span>You'll receive an email with subscription management links shortly.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Details -->
+        <div class="order-details-card">
+          <div class="card-header">
+            <h2>Order Details</h2>
+          </div>
+          
+          <div class="details-content expanded">
+            <div *ngIf="orderData" class="order-info">
+              
+              <!-- Customer Info -->
+              <div class="info-section">
+                <h3>Customer Information</h3>
+                <p><strong>Name:</strong> {{ customerName }}</p>
+                <p><strong>Email:</strong> {{ orderData.customerInfo.email }}</p>
+                <p *ngIf="orderData.customerInfo.company">
+                  <strong>Company:</strong> {{ orderData.customerInfo.company }}
+                </p>
+              </div>
+
+              <!-- Order Items -->
+              <div class="info-section">
+                <h3>Order Items</h3>
+                <div class="items-list">
+                  <div *ngFor="let item of orderData.items" class="item-row" [class.addon-item]="item.isAddon">
+                    <div class="item-info">
+                      <div class="item-name">{{ item.productName }}</div>
+                      <div class="item-plan">{{ item.planName }}</div>
+                      <div class="item-description">{{ getItemDescription(item) }}</div>
+                    </div>
+                    <div class="item-price">{{ formatPrice(item.price) }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pricing Breakdown -->
+              <div class="info-section">
+                <h3>Pricing</h3>
+                <div class="pricing-rows">
+                  <div class="price-row">
+                    <span>Subtotal</span>
+                    <span>{{ formatPrice(orderData.pricing.subtotal) }}</span>
+                  </div>
+                  
+                  <div *ngIf="orderData.pricing.discountAmount > 0" class="price-row discount">
+                    <span>Discount ({{ orderData.pricing.appliedCoupon }})</span>
+                    <span>-{{ formatPrice(orderData.pricing.discountAmount) }}</span>
+                  </div>
+                  
+                  <div *ngIf="orderData.pricing.tax > 0" class="price-row">
+                    <span>Tax</span>
+                    <span>{{ formatPrice(orderData.pricing.tax) }}</span>
+                  </div>
+                  
+                  <div class="price-row total">
+                    <span>Total</span>
+                    <span>{{ formatPrice(orderData.pricing.total) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="footer-actions">
+        <button 
+          mat-stroked-button
+          class="new-order-button"
+          (click)="startNewOrder()">
+          <mat-icon>add_shopping_cart</mat-icon>
+          Start New Order
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Order Data Message -->
+  <div *ngIf="!orderData" class="no-data-message">
+    <div class="container">
+      <div class="message-content">
+        <mat-icon>error_outline</mat-icon>
+        <h2>Order Not Found</h2>
+        <p>We couldn't find your order details. Please contact support if you need assistance.</p>
+        <button mat-raised-button color="primary" (click)="startNewOrder()">
+          Go to Home
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

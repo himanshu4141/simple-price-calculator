@@ -252,19 +252,18 @@ export class PricingService {
     const basePrice = applicableTier ? item.seats * applicableTier.price : 0;
     const appliedTier = applicableTier ? `$${applicableTier.price}/seat` : 'Unknown';
 
-    // Calculate packages cost
+    // Calculate packages cost - charge for exactly what user requested as "additional"
     let packagesPrice = 0;
     let includedPackages: number | undefined;
     let extraPackages: number | undefined;
 
     if (item.packages && plan.packagePrice) {
+      // User requested additional packages, so charge for exactly what they asked for
+      packagesPrice = item.packages * plan.packagePrice;
+      extraPackages = item.packages;
+      // Note: includedPackages info is still useful for display but doesn't affect pricing
       if (plan.freePackagesPerSeat) {
         includedPackages = item.seats * plan.freePackagesPerSeat;
-        extraPackages = Math.max(0, item.packages - includedPackages);
-        packagesPrice = extraPackages * plan.packagePrice;
-      } else {
-        packagesPrice = item.packages * plan.packagePrice;
-        extraPackages = item.packages;
       }
     }
 
@@ -310,10 +309,11 @@ export class PricingService {
 
     let total = seats * applicableTier.price;
 
-    if (plan.freePackagesPerSeat && plan.packagePrice) {
-      const freePackages = seats * plan.freePackagesPerSeat;
-      const extraPackages = Math.max(0, packages - freePackages);
-      total += extraPackages * plan.packagePrice;
+    // Handle package pricing - charge for exactly what the user requested as "additional"
+    if (plan.packagePrice && packages > 0) {
+      // User is explicitly requesting additional packages on top of their plan
+      // So we charge for exactly what they requested, not subtract included packages
+      total += packages * plan.packagePrice;
     }
 
     if (plan.apiPrice && apiCalls > 0) {
@@ -365,5 +365,35 @@ export class PricingService {
       map(() => true),
       catchError(() => of(false))
     );
+  }
+
+  /**
+   * Calculate price for cart - simplified without included package logic
+   */
+  calculateCartPrice(productFamily: ProductFamily, planName: string, seats: number, packages: number, apiCalls: number, term: BillingTerm): number {
+    const plan = this.findPlanByName(productFamily, planName);
+    if (!plan) {
+      return 0;
+    }
+
+    const pricing = term === BILLING_TERMS.ONE_YEAR ? plan.oneYearPricing : plan.threeYearPricing;
+    const applicableTier = this.findApplicablePricingTier(pricing, seats);
+
+    if (!applicableTier) {
+      return 0;
+    }
+
+    let total = seats * applicableTier.price;
+
+    // Simple cart pricing: charge for exactly what user enters
+    if (plan.packagePrice && packages > 0) {
+      total += packages * plan.packagePrice;
+    }
+
+    if (plan.apiPrice && apiCalls > 0) {
+      total += apiCalls * plan.apiPrice;
+    }
+
+    return total;
   }
 }

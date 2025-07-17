@@ -1,0 +1,100 @@
+<div class="sales-contact-modal">
+  <div class="modal-header">
+    <h2 mat-dialog-title>
+      {{ data.title || 'Contact Sales for 3-Year Plans' }}
+    </h2>
+    <button mat-icon-button (click)="onClose()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div mat-dialog-content class="modal-content">
+    <div class="sales-icon">
+      <mat-icon class="large-icon">business_center</mat-icon>
+    </div>
+
+    <div class="message-content">
+      <p class="primary-message">
+        {{ data.message || 'Thank you for your interest in our 3-year enterprise plans!' }}
+      </p>
+      
+      <div *ngIf="data.productFamily && data.planName" class="product-info">
+        <h4>Your Selection:</h4>
+        <p><strong>{{ data.productFamily }} - {{ data.planName }}</strong></p>
+        <p *ngIf="data.term === '3year'">3-Year Commitment Term</p>
+      </div>
+
+      <!-- Show detailed product breakdown for calculator selections -->
+      <div *ngIf="data.selectedProducts && data.selectedProducts.length > 0" class="products-breakdown">
+        <h4>Your Configuration:</h4>
+        <div class="product-list">
+          <div *ngFor="let product of data.selectedProducts" class="product-item">
+            <div class="product-name">{{ product.family }} - {{ product.plan }}</div>
+            <div class="product-details">
+              <span>{{ product.seats }} seats</span>
+              <span *ngIf="product.packages && product.packages > 0">, {{ product.packages }} packages</span>
+              <span *ngIf="product.apiCalls && product.apiCalls > 0">, {{ product.apiCalls }} API calls</span>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="data.totalPrice" class="total-estimate">
+          <strong>Estimated Annual Cost: {{ formatPrice(data.totalPrice) }}</strong>
+        </div>
+      </div>
+
+      <div class="benefits-section">
+        <h4>3-Year Plans Include:</h4>
+        <ul class="benefits-list">
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Significant volume discounts</span>
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Dedicated account management</span>
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Priority customer support</span>
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Custom contract terms</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="contact-section">
+        <h4>Ready to get started?</h4>
+        <p>Our sales team will contact you within 24 hours, or reach out directly:</p>
+        
+        <div class="contact-methods">
+          <button mat-raised-button color="primary" (click)="onContactEmail()" class="contact-button">
+            <mat-icon>email</mat-icon>
+            <span>Email Sales Team</span>
+          </button>
+          
+          <div class="contact-info">
+            <div class="contact-method">
+              <mat-icon>email</mat-icon>
+              <span>sales&#64;nitro.com</span>
+            </div>
+            <div class="contact-method">
+              <mat-icon>phone</mat-icon>
+              <span>1-800-NITRO-PDF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div mat-dialog-actions class="modal-actions">
+    <button mat-stroked-button (click)="onClose()" class="secondary-button">
+      Back to Pricing
+    </button>
+    <button mat-raised-button color="primary" (click)="onContactEmail()" class="primary-button">
+      Contact Sales Now
+    </button>
+  </div>
+</div>

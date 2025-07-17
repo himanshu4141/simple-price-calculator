@@ -15,6 +15,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--nitro-spacing-xl);
+  /* Ensure dropdowns are not clipped */
+  overflow: visible;
+  position: relative;
+  z-index: 100;
 
   .nav-brand {
     display: flex;
@@ -83,6 +87,9 @@
     display: flex;
     align-items: center;
     gap: var(--nitro-spacing-md);
+    /* Ensure currency selector dropdown is not clipped */
+    position: relative;
+    z-index: 1000;
   }
 }
 
