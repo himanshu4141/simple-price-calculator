@@ -184,7 +184,8 @@ export class StripeService {
       const elementsOptions: any = {
         appearance: this.getNitroAppearance(),
         loader: 'auto',
-        paymentMethodCreation: 'manual' // Required for manual payment method creation
+        paymentMethodCreation: 'manual', // Required for manual payment method creation
+        paymentMethodConfiguration: 'pmc_0RciuMRIbsQt5S7qO8K3eHRa' // Use your specific payment method configuration
       };
 
       // Add localization options
@@ -210,7 +211,7 @@ export class StripeService {
       console.log('✅ Elements instance created successfully with localization:', {
         locale: elementsOptions.locale,
         currency: elementsOptions.currency,
-        mode: elementsOptions.mode || 'payment'
+        paymentMethodConfig: 'pmc_0RciuMRIbsQt5S7qO8K3eHRa'
       });
     } catch (error) {
       console.error('❌ Error creating Elements:', error);
@@ -254,7 +255,7 @@ export class StripeService {
       }
 
       await this.paymentElement.mount(`#${containerId}`);
-      console.log('✅ Payment Element mounted successfully');
+      console.log('✅ Payment Element mounted successfully with payment method configuration');
       
       return this.paymentElement;
     } catch (error) {
