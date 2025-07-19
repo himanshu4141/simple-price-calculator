@@ -234,9 +234,9 @@ class StripeClient(config: StripeConfig)(implicit ec: ExecutionContext) extends 
           .setPaymentMethod(paymentMethodId)
           .setConfirm(false) // Don't confirm immediately - let frontend handle 3DS
           .setCaptureMethod(PaymentIntentCreateParams.CaptureMethod.MANUAL) // Let Chargebee handle capture
-          .setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL) // Manual confirmation for frontend
+          // Don't set confirmation_method - use default automatic so frontend can confirm
         
-        // Disable redirects for frontend handling
+        // Use automatic_payment_methods for frontend confirmation compatibility
         paramsBuilder.setAutomaticPaymentMethods(
           PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
             .setEnabled(true)
@@ -262,9 +262,9 @@ class StripeClient(config: StripeConfig)(implicit ec: ExecutionContext) extends 
         
         // Should be in requires_confirmation state for frontend handling
         if (paymentIntent.getStatus == "requires_confirmation") {
-          logger.info(s"✅ PaymentIntent ready for frontend confirmation")
+          logger.info(s"✅ PaymentIntent ready for frontend confirmation - will trigger 3DS if needed")
         } else {
-          logger.warn(s"⚠️ Unexpected PaymentIntent status: ${paymentIntent.getStatus}")
+          logger.info(s"✅ PaymentIntent status: ${paymentIntent.getStatus} - frontend can confirm this")
         }
         
         paymentIntent

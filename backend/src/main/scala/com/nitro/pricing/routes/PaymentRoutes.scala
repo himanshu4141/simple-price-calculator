@@ -2,7 +2,7 @@ package com.nitro.pricing.routes
 
 import com.nitro.pricing.services.{StripeClient, CheckoutService}
 import com.nitro.pricing.models.JsonCodecs._
-import com.nitro.pricing.models.CheckoutItem
+import com.nitro.pricing.models.{CheckoutItem, BillingAddress}
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.pekko.http.scaladsl.model.StatusCodes
@@ -43,6 +43,14 @@ case class CreateSubscriptionRequest(
   customerId: String,
   paymentIntentId: String,
   items: List[CheckoutItem],
+  currency: String
+)
+
+case class CompleteSubscriptionAfter3DSRequest(
+  customerId: String,
+  paymentIntentId: String,
+  items: List[CheckoutItem],
+  billingAddress: BillingAddress,
   currency: String
 )
 
@@ -119,6 +127,26 @@ class PaymentRoutes(stripeClient: StripeClient, checkoutService: CheckoutService
               customerId = request.customerId,
               paymentIntentId = request.paymentIntentId,
               requestedItems = request.items,
+              currency = request.currency
+            )) { response =>
+              if (response.success) {
+                complete(StatusCodes.OK, response)
+              } else {
+                complete(StatusCodes.BadRequest, response)
+              }
+            }
+          }
+        }
+      },
+      path("complete-subscription-after-3ds") {
+        post {
+          entity(as[CompleteSubscriptionAfter3DSRequest]) { request =>
+            logger.info(s"Completing subscription after 3DS: ${request.paymentIntentId} for customer: ${request.customerId}")
+            onSuccess(checkoutService.completeSubscriptionAfter3DS(
+              customerId = request.customerId,
+              paymentIntentId = request.paymentIntentId,
+              requestedItems = request.items,
+              billingAddress = request.billingAddress,
               currency = request.currency
             )) { response =>
               if (response.success) {

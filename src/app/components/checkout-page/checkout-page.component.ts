@@ -646,6 +646,11 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (response.success) {
           console.log('✅ Checkout successful:', response);
+          console.log('🔍 Debug payment status check:', {
+            hasClientSecret: !!response.paymentIntentClientSecret,
+            paymentStatus: response.paymentStatus,
+            clientSecret: response.paymentIntentClientSecret ? 'present' : 'missing'
+          });
           
           // Check if payment needs frontend 3DS handling
           if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_action') {
@@ -655,6 +660,12 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
             console.log('🔄 Payment requires frontend confirmation');
             this.confirmPaymentOnFrontend(response);
           } else {
+            console.log('❓ Payment condition not met, going to success:', {
+              hasClientSecret: !!response.paymentIntentClientSecret,
+              paymentStatus: response.paymentStatus,
+              condition1: response.paymentIntentClientSecret && response.paymentStatus === 'requires_action',
+              condition2: response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation'
+            });
             // Payment already completed or no payment required
             this.checkoutComplete = true;
           }
@@ -1006,10 +1017,11 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded') {
           // Authentication successful, notify backend
+          console.log('🔄 Payment successful, creating Chargebee subscription...');
           await this.notifyBackendOfPaymentConfirmation(checkoutResponse);
         } else {
-          console.error('❌ PaymentIntent still requires action:', paymentIntent.status);
-          this.paymentErrors = 'Payment authentication incomplete. Please try again.';
+          console.error('❌ PaymentIntent still requires action after 3DS:', paymentIntent.status);
+          this.paymentErrors = `Payment authentication incomplete. Status: ${paymentIntent.status}. Please try again.`;
           this.isProcessingPayment = false;
         }
       } else {

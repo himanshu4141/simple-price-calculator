@@ -304,9 +304,43 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
       console.log('  - response.chargebeePortalUrl:', response.chargebeePortalUrl);
       console.log('  - response.portalUrl:', response.portalUrl);
       console.log('  - response.portalSessionId:', response.portalSessionId);
+      console.log('🔍 Payment status data in response:');
+      console.log('  - response.paymentStatus:', response.paymentStatus);
+      console.log('  - response.paymentIntentClientSecret:', response.paymentIntentClientSecret);
 
       if (!response.success) {
         throw new Error(response.error || response.message || 'Checkout processing failed');
+      }
+
+      // Check if 3DS authentication is required
+      if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation') {
+        console.log('🔐 3DS authentication required, triggering Stripe confirmation...');
+        
+        // Handle 3DS authentication
+        const confirmedResult = await this.handle3DSAuthentication(response.paymentIntentClientSecret, paymentMethodId);
+        
+        if (!confirmedResult.success) {
+          throw new Error(confirmedResult.error || '3DS authentication failed');
+        }
+        
+        console.log('✅ 3DS authentication completed successfully');
+        
+        // Complete subscription creation after successful 3DS
+        console.log('🔄 Completing subscription creation after 3DS...');
+        const subscriptionResult = await this.completeSubscriptionAfter3DS(
+          response.customerId, 
+          response.paymentIntentId!, 
+          checkoutItems
+        );
+        
+        if (!subscriptionResult.success) {
+          throw new Error(subscriptionResult.message || 'Failed to complete subscription after 3DS');
+        }
+        
+        console.log('✅ Subscription creation completed after 3DS');
+        
+        // Update the response with subscription details
+        Object.assign(response, subscriptionResult);
       }
 
       const result = {
@@ -326,6 +360,98 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
       console.error('❌ Backend checkout failed:', error);
       throw new Error(error.error?.message || 'Failed to process payment. Please try again.');
     }
+  }
+
+  /**
+   * Handle 3DS authentication for PaymentIntent
+   */
+  private async handle3DSAuthentication(paymentIntentClientSecret: string, paymentMethodId: string): Promise<{success: boolean, error?: string}> {
+    try {
+      console.log('🔐 Starting 3DS authentication process...');
+      
+      // Initialize Stripe if not already done
+      if (!this.stripeService.getStripeInstance()) {
+        await this.stripeService.initializeStripe();
+      }
+      
+      const stripe = this.stripeService.getStripeInstance();
+      if (!stripe) {
+        throw new Error('Stripe not initialized');
+      }
+      
+      // Confirm the PaymentIntent with 3DS handling
+      console.log('🔐 Confirming PaymentIntent with 3DS...');
+      const { paymentIntent, error } = await stripe.confirmPayment({
+        clientSecret: paymentIntentClientSecret,
+        confirmParams: {
+          // We don't need to provide payment_method since it's already attached
+          return_url: `${window.location.origin}/checkout-success`, // Fallback URL
+        },
+        redirect: 'if_required' // Only redirect if absolutely necessary
+      });
+      
+      if (error) {
+        console.error('❌ 3DS authentication failed:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!paymentIntent) {
+        return { success: false, error: 'PaymentIntent confirmation returned no result' };
+      }
+      
+      console.log('✅ 3DS authentication completed, PaymentIntent status:', paymentIntent.status);
+      
+      // Check if the PaymentIntent is in a successful state
+      if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+        console.log('✅ PaymentIntent is ready for capture');
+        return { success: true };
+      } else if (paymentIntent.status === 'requires_action') {
+        // This shouldn't happen with redirect: 'if_required', but handle it just in case
+        console.error('❌ PaymentIntent still requires action after confirmation');
+        return { success: false, error: 'Payment requires additional authentication that could not be completed' };
+      } else {
+        console.error('❌ Unexpected PaymentIntent status after confirmation:', paymentIntent.status);
+        return { success: false, error: `Payment failed with status: ${paymentIntent.status}` };
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in 3DS authentication:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error during 3DS authentication' 
+      };
+    }
+  }
+
+  /**
+   * Complete subscription creation after successful 3DS authentication
+   */
+  private async completeSubscriptionAfter3DS(customerId: string, paymentIntentId: string, checkoutItems: any[]): Promise<any> {
+    console.log('🔄 Calling backend to complete subscription after 3DS...');
+    
+    const request = {
+      customerId: customerId,
+      paymentIntentId: paymentIntentId,
+      items: checkoutItems,
+      billingAddress: {
+        firstName: this.customerInfo?.firstName || '',
+        lastName: this.customerInfo?.lastName || '',
+        line1: this.customerInfo?.address?.line1 || '',
+        city: this.customerInfo?.address?.city || '',
+        state: this.customerInfo?.address?.state || '',
+        postalCode: this.customerInfo?.address?.postalCode || '',
+        country: this.customerInfo?.address?.country || 'US'
+      },
+      currency: this.localizationService.currentCurrency
+    };
+    
+    console.log('🚀 Sending complete-subscription-after-3ds request:', request);
+    
+    const response = await this.httpClient.post<any>(`${environment.apiUrl}/payment/complete-subscription-after-3ds`, request).toPromise();
+    
+    console.log('✅ Complete subscription after 3DS response:', response);
+    
+    return response;
   }
 
   // Chargebee item price ID mapping (same as old checkout)
@@ -450,19 +576,6 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
     try {
       console.log('💳 Creating payment method using customer info (Elements not available on confirmation page)...');
       
-      // Since we're on the confirmation page, the Stripe Elements from the cart page are no longer mounted
-      // We need to create a payment method using the customer information we have stored
-      
-      // Get customer info
-      const customerEmail = this.customerInfo?.email;
-      if (!customerEmail) {
-        throw new Error('Customer email is required for payment processing');
-      }
-
-      if (!this.customerInfo?.address) {
-        throw new Error('Customer address is required for payment processing');
-      }
-
       // Check if we have stored payment method data from the cart page
       const storedPaymentData = this.getStoredPaymentData();
       if (storedPaymentData?.paymentMethodId) {
@@ -470,46 +583,8 @@ export class CheckoutConfirmationComponent implements OnInit, OnDestroy {
         return storedPaymentData.paymentMethodId;
       }
 
-      console.log('📍 No stored payment method found. Creating new payment method using customer data...');
-      
-      // Initialize Stripe if not already done
-      if (!this.stripeService.getStripeInstance()) {
-        await this.stripeService.initializeStripe();
-      }
-
-      // Create a server-side payment method using the customer information
-      // This is a fallback approach when Elements are not available
-      const paymentMethodData = {
-        type: 'card',
-        billing_details: {
-          name: `${this.customerInfo.firstName} ${this.customerInfo.lastName}`.trim(),
-          email: customerEmail,
-          address: {
-            line1: this.customerInfo.address.line1,
-            line2: this.customerInfo.address.line2 || '',
-            city: this.customerInfo.address.city,
-            state: this.customerInfo.address.state,
-            postal_code: this.customerInfo.address.postalCode,
-            country: this.customerInfo.address.country || 'US',
-          }
-        }
-      };
-
-      console.log('📍 Creating payment method via backend API...');
-      
-      // Call backend to create payment method with customer data
-      // This approach bypasses the need for mounted Stripe Elements
-      const response = await this.httpClient.post<any>(`${environment.apiUrl}/create-payment-method`, {
-        customerInfo: this.customerInfo,
-        billingDetails: paymentMethodData.billing_details
-      }).toPromise();
-
-      if (!response.success || !response.paymentMethodId) {
-        throw new Error(response.error || 'Failed to create payment method via backend');
-      }
-
-      console.log('✅ Payment method created via backend:', response.paymentMethodId);
-      return response.paymentMethodId;
+      console.log('❌ No stored payment method found!');
+      throw new Error('Payment method not found. Please return to the cart page and complete payment details again.');
       
     } catch (error) {
       console.error('❌ Error in getPaymentMethodFromStripe:', error);
