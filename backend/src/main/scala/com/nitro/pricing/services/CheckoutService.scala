@@ -62,8 +62,8 @@ class CheckoutService(
           // Handle payment methods
           request.paymentMethodId match {
             case Some(paymentMethodId) =>
-              // Payment method provided - attach it and create subscription with payment
-              processSubscriptionWithPayment(chargebeeCustomer.id, request.items, request.billingAddress, request.currency, paymentMethodId)
+              // Payment method provided - create subscription with unconfirmed payment
+              processSubscriptionWithUnconfirmedPayment(chargebeeCustomer.id, request.items, request.billingAddress, request.currency, paymentMethodId)
             case None =>
               // No payment method - create subscription without payment (might be free or require manual payment)
               processSubscriptionCreation(chargebeeCustomer.id, request.items, request.currency)
@@ -185,6 +185,348 @@ class CheckoutService(
     } yield finalResponse
   }
 
+  /**
+   * Create subscription with PaymentIntent - frontend handles 3DS first
+   */
+  private def processSubscriptionWithUnconfirmedPayment(
+    customerId: String, 
+    requestedItems: List[CheckoutItem], 
+    billingAddress: BillingAddress,
+    currency: String, 
+    paymentMethodId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Creating PaymentIntent for frontend 3DS handling - customer: $customerId, payment method: $paymentMethodId")
+    
+    val subscriptionContainerId = s"Chargebee_susbcription_plan-${currency.toUpperCase}-1_YEAR"
+    val allItems = CheckoutItem(subscriptionContainerId, 1) :: requestedItems
+    
+    // New flow: Create PaymentIntent for frontend confirmation, then create subscription after 3DS
+    for {
+      // Step 1: Calculate total amount using Chargebee estimate API
+      totalAmount <- calculateTotalAmount(customerId, allItems, billingAddress, currency)
+      
+      // Step 2: Create PaymentIntent in requires_confirmation state for frontend handling
+      paymentIntentResult <- stripeClient.createPaymentIntentForChargebee(
+        amount = totalAmount,
+        currency = currency,
+        paymentMethodId = paymentMethodId,
+        captureMethod = "manual",
+        setupFutureUsage = "off_session"
+      )
+      
+      // Step 3: Return PaymentIntent info to frontend for 3DS handling
+      finalResponse <- paymentIntentResult match {
+        case Right(paymentIntent) =>
+          logger.info(s"✅ PaymentIntent created for frontend 3DS handling: ${paymentIntent.getId}, status: ${paymentIntent.getStatus}")
+          Future.successful(CheckoutResponse(
+            success = true,
+            customerId = customerId,
+            subscriptionId = None, // No subscription yet - frontend must confirm payment first
+            hostedPageUrl = None,
+            message = "PaymentIntent created. Please complete authentication and confirmation.",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntent.getId),
+            paymentStatus = Some(paymentIntent.getStatus),
+            paymentIntentClientSecret = Some(paymentIntent.getClientSecret),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+        case Left(error) =>
+          logger.error(s"❌ Failed to create PaymentIntent: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Payment setup failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = None,
+            paymentStatus = Some("failed"),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Confirm payment and activate subscription after frontend 3DS handling
+   * This is called after frontend successfully confirms the PaymentIntent
+   */
+  def confirmPaymentAndActivateSubscription(
+    customerId: String, 
+    subscriptionId: String, 
+    paymentIntentId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Confirming payment and activating subscription - Customer: $customerId, Subscription: $subscriptionId, PaymentIntent: $paymentIntentId")
+    
+    for {
+      // Step 1: Verify PaymentIntent is confirmed and ready for capture
+      paymentIntentResult <- stripeClient.retrievePaymentIntent(paymentIntentId)
+      
+      // Step 2: Create portal session for successful payments
+      finalResponse <- paymentIntentResult match {
+        case Right(paymentIntent) if paymentIntent.getStatus == "requires_capture" =>
+          logger.info(s"✅ Payment confirmed successfully (requires_capture) - creating portal session")
+          createPortalSessionForResponse(customerId, subscriptionId, "Payment confirmed and subscription activated successfully")
+        case Right(paymentIntent) if paymentIntent.getStatus == "succeeded" =>
+          logger.info(s"✅ Payment succeeded - creating portal session")
+          createPortalSessionForResponse(customerId, subscriptionId, "Payment confirmed and subscription activated successfully")
+        case Right(paymentIntent) if paymentIntent.getStatus == "requires_action" =>
+          logger.warn(s"⚠️ PaymentIntent still requires action: frontend should handle this")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = Some(subscriptionId),
+            hostedPageUrl = None,
+            message = "Payment still requires authentication. Please complete 3D Secure verification.",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("requires_action"),
+            paymentIntentClientSecret = Some(paymentIntent.getClientSecret),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+        case Right(paymentIntent) =>
+          logger.error(s"❌ PaymentIntent in unexpected state: ${paymentIntent.getStatus}")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = Some(subscriptionId),
+            hostedPageUrl = None,
+            message = s"Payment not confirmed: ${paymentIntent.getStatus}",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some(paymentIntent.getStatus),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+        case Left(error) =>
+          logger.error(s"❌ Failed to retrieve PaymentIntent: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = Some(subscriptionId),
+            hostedPageUrl = None,
+            message = s"Payment verification failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("verification_failed"),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Create subscription after frontend confirms PaymentIntent
+   * This is called after frontend successfully handles 3DS and confirms the PaymentIntent
+   */
+  def createSubscriptionAfterPaymentConfirmation(
+    customerId: String,
+    paymentIntentId: String,
+    requestedItems: List[CheckoutItem],
+    currency: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Creating subscription after payment confirmation - Customer: $customerId, PaymentIntent: $paymentIntentId")
+    
+    val subscriptionContainerId = s"Chargebee_susbcription_plan-${currency.toUpperCase}-1_YEAR"
+    val allItems = CheckoutItem(subscriptionContainerId, 1) :: requestedItems
+    
+    for {
+      // Step 1: Verify PaymentIntent is confirmed and ready for capture
+      paymentIntentResult <- stripeClient.retrievePaymentIntent(paymentIntentId)
+      
+      // Step 2: Create subscription if PaymentIntent is ready
+      finalResponse <- paymentIntentResult match {
+        case Right(paymentIntent) if paymentIntent.getStatus == "requires_capture" =>
+          logger.info(s"✅ PaymentIntent confirmed and ready for capture - creating subscription")
+          createSubscriptionAndPortal(customerId, allItems, paymentIntentId, subscriptionId = None)
+          
+        case Right(paymentIntent) if paymentIntent.getStatus == "succeeded" =>
+          logger.info(s"✅ PaymentIntent succeeded - creating subscription")
+          createSubscriptionAndPortal(customerId, allItems, paymentIntentId, subscriptionId = None)
+          
+        case Right(paymentIntent) if paymentIntent.getStatus == "requires_action" =>
+          logger.warn(s"⚠️ PaymentIntent still requires action - frontend should handle this first")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = "Payment still requires authentication. Please complete 3D Secure verification first.",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("requires_action"),
+            paymentIntentClientSecret = Some(paymentIntent.getClientSecret),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+          
+        case Right(paymentIntent) =>
+          logger.error(s"❌ PaymentIntent in unexpected state: ${paymentIntent.getStatus}")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Payment not ready for subscription creation: ${paymentIntent.getStatus}",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some(paymentIntent.getStatus),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+          
+        case Left(error) =>
+          logger.error(s"❌ Failed to retrieve PaymentIntent: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Payment verification failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("verification_failed"),
+            paymentIntentClientSecret = None,
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Complete subscription creation after frontend 3DS authentication
+   * Called after frontend successfully confirms PaymentIntent via Stripe.js
+   */
+  def completeSubscriptionAfter3DS(
+    customerId: String,
+    paymentIntentId: String,
+    requestedItems: List[CheckoutItem],
+    billingAddress: BillingAddress,
+    currency: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"🔄 Completing subscription creation after 3DS authentication - customer: $customerId, paymentIntent: $paymentIntentId")
+    
+    for {
+      // Step 1: Verify PaymentIntent is in the correct state (succeeded or requires_capture)
+      paymentIntentResult <- stripeClient.retrievePaymentIntent(paymentIntentId)
+      
+      // Step 2: Process based on PaymentIntent status
+      finalResponse <- paymentIntentResult match {
+        case Right(paymentIntent) =>
+          val status = paymentIntent.getStatus
+          logger.info(s"🔍 PaymentIntent status: $status")
+          
+          if (status == "succeeded" || status == "requires_capture") {
+            // PaymentIntent is ready - create the subscription
+            logger.info(s"✅ PaymentIntent is ready ($status), creating Chargebee subscription...")
+            createSubscriptionWithConfirmedPayment(customerId, requestedItems, billingAddress, currency, paymentIntentId)
+          } else {
+            logger.error(s"❌ PaymentIntent is not ready for subscription creation, status: $status")
+            Future.successful(CheckoutResponse(
+              success = false,
+              customerId = customerId,
+              subscriptionId = None,
+              hostedPageUrl = None,
+              message = s"Payment not confirmed yet. Status: $status",
+              salesContactRequired = false,
+              paymentIntentId = Some(paymentIntentId),
+              paymentStatus = Some(status),
+              portalSessionUrl = None,
+              portalSessionId = None
+            ))
+          }
+          
+        case Left(error) =>
+          logger.error(s"❌ Failed to retrieve PaymentIntent: $error")
+          Future.successful(CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Failed to verify payment: $error",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("unknown"),
+            portalSessionUrl = None,
+            portalSessionId = None
+          ))
+      }
+    } yield finalResponse
+  }
+
+  /**
+   * Create subscription with a confirmed PaymentIntent
+   */
+  private def createSubscriptionWithConfirmedPayment(
+    customerId: String,
+    requestedItems: List[CheckoutItem],
+    billingAddress: BillingAddress,
+    currency: String,
+    paymentIntentId: String
+  ): Future[CheckoutResponse] = {
+    logger.info(s"Creating Chargebee subscription with confirmed PaymentIntent: $paymentIntentId")
+    
+    val subscriptionContainerId = s"Chargebee_susbcription_plan-${currency.toUpperCase}-1_YEAR"
+    val allItems = CheckoutItem(subscriptionContainerId, 1) :: requestedItems
+    
+    for {
+      subscriptionResult <- chargebeeClient.createSubscriptionWithPaymentIntent(customerId, allItems, paymentIntentId)
+      portalSession <- subscriptionResult match {
+        case Right(subscription) =>
+          logger.info(s"✅ Subscription created successfully: ${subscription.id}")
+          // Create portal session for customer access
+          chargebeeClient.createPortalSession(customerId).map {
+            case Right(session) => Some(session)
+            case Left(error) =>
+              logger.warn(s"Failed to create portal session: $error")
+              None
+          }
+        case Left(_) =>
+          Future.successful(None)
+      }
+      
+      finalResponse = subscriptionResult match {
+        case Right(subscription) =>
+          logger.info(s"🎉 Subscription creation completed successfully!")
+          CheckoutResponse(
+            success = true,
+            customerId = customerId,
+            subscriptionId = Some(subscription.id),
+            hostedPageUrl = None,
+            message = "Subscription created successfully",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("succeeded"),
+            portalSessionUrl = portalSession.map(_.access_url),
+            portalSessionId = portalSession.map(_.id)
+          )
+        case Left(error) =>
+          logger.error(s"❌ Subscription creation failed: $error")
+          CheckoutResponse(
+            success = false,
+            customerId = customerId,
+            subscriptionId = None,
+            hostedPageUrl = None,
+            message = s"Subscription creation failed: $error",
+            salesContactRequired = false,
+            paymentIntentId = Some(paymentIntentId),
+            paymentStatus = Some("succeeded"),
+            portalSessionUrl = None,
+            portalSessionId = None
+          )
+      }
+    } yield finalResponse
+  }
+
   private def calculateTotalAmount(
     customerId: String,
     items: List[CheckoutItem], 
@@ -254,4 +596,49 @@ class CheckoutService(
         )
     }
   }
+
+  /**
+   * Create subscription and portal session for successful payments
+   */
+  private def createSubscriptionAndPortal(
+    customerId: String, 
+    items: List[CheckoutItem], 
+    paymentIntentId: String,
+    subscriptionId: Option[String] = None
+  ): Future[CheckoutResponse] = {
+    // If subscription already exists, just create portal session
+    subscriptionId match {
+      case Some(id) =>
+        logger.info(s"✅ Using existing subscription: $id")
+        createPortalSessionForResponse(customerId, id, "Payment confirmed and subscription activated successfully")
+      case None =>
+        // Create new subscription
+        logger.info(s"Creating new subscription with confirmed PaymentIntent: $paymentIntentId")
+        for {
+          subscriptionResult <- chargebeeClient.createSubscriptionWithPaymentIntent(customerId, items, paymentIntentId)
+          finalResponse <- subscriptionResult match {
+            case Right(subscription) =>
+              logger.info(s"✅ Subscription created successfully: ${subscription.id}")
+              createPortalSessionForResponse(customerId, subscription.id, "Subscription created and payment processed successfully")
+            case Left(error) =>
+              logger.error(s"❌ Subscription creation failed: $error")
+              Future.successful(CheckoutResponse(
+                success = false,
+                customerId = customerId,
+                subscriptionId = None,
+                hostedPageUrl = None,
+                message = s"Subscription creation failed: $error",
+                salesContactRequired = false,
+                paymentIntentId = Some(paymentIntentId),
+                paymentStatus = Some("failed"),
+                paymentIntentClientSecret = None,
+                portalSessionUrl = None,
+                portalSessionId = None
+              ))
+          }
+        } yield finalResponse
+    }
+  }
+
+
 }

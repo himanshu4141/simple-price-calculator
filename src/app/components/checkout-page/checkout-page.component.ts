@@ -56,6 +56,9 @@ interface CheckoutResponse {
   readonly salesContactRequired?: boolean;
   readonly message?: string;
   readonly error?: string;
+  readonly paymentIntentId?: string;
+  readonly paymentStatus?: string;
+  readonly paymentIntentClientSecret?: string;
 }
 
 interface TaxRequest {
@@ -142,6 +145,9 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
   isProcessingPayment = false;
   paymentErrors = '';
   paymentMethodCreated = false;
+  
+  // Checkout data - store for later use in confirmation
+  private checkoutItems: CheckoutItem[] = [];
   
   // Pricing data
   estimateTotal = 0;
@@ -590,6 +596,9 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
+    // Store checkout items for later use in payment confirmation
+    this.checkoutItems = checkoutItems;
+
     const checkoutRequest: CheckoutRequest = {
       customer: {
         firstName: formValue.firstName,
@@ -637,7 +646,29 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (response.success) {
           console.log('✅ Checkout successful:', response);
-          this.checkoutComplete = true;
+          console.log('🔍 Debug payment status check:', {
+            hasClientSecret: !!response.paymentIntentClientSecret,
+            paymentStatus: response.paymentStatus,
+            clientSecret: response.paymentIntentClientSecret ? 'present' : 'missing'
+          });
+          
+          // Check if payment needs frontend 3DS handling
+          if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_action') {
+            console.log('🔐 Payment requires 3D Secure authentication');
+            this.handle3DSecureAuthentication(response);
+          } else if (response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation') {
+            console.log('🔄 Payment requires frontend confirmation');
+            this.confirmPaymentOnFrontend(response);
+          } else {
+            console.log('❓ Payment condition not met, going to success:', {
+              hasClientSecret: !!response.paymentIntentClientSecret,
+              paymentStatus: response.paymentStatus,
+              condition1: response.paymentIntentClientSecret && response.paymentStatus === 'requires_action',
+              condition2: response.paymentIntentClientSecret && response.paymentStatus === 'requires_confirmation'
+            });
+            // Payment already completed or no payment required
+            this.checkoutComplete = true;
+          }
         } else if (response.salesContactRequired) {
           console.log('📞 Sales contact required:', response);
           this.showSalesModal = true;
@@ -864,5 +895,144 @@ export class CheckoutPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getCurrentCurrency(): string {
     return this.localizationService.currentCurrency;
+  }
+
+  /**
+   * Confirm payment on frontend after subscription is created
+   */
+  private async confirmPaymentOnFrontend(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.paymentIntentClientSecret) {
+      console.error('❌ No payment intent client secret provided');
+      this.errorMessage = 'Payment confirmation failed. Please try again.';
+      return;
+    }
+
+    this.isProcessingPayment = true;
+    this.paymentErrors = '';
+
+    try {
+      console.log('🔄 Confirming payment on frontend...');
+      
+      // Confirm payment using Stripe
+      const { error, paymentIntent } = await this.stripeService.confirmPayment(
+        checkoutResponse.paymentIntentClientSecret
+      );
+
+      if (error) {
+        console.error('❌ Frontend payment confirmation failed:', error);
+        this.paymentErrors = error.message || 'Payment confirmation failed. Please try again.';
+        this.isProcessingPayment = false;
+        return;
+      }
+
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log('✅ Payment confirmed successfully on frontend');
+        
+        // Notify backend that payment is confirmed
+        await this.notifyBackendOfPaymentConfirmation(checkoutResponse);
+      } else {
+        console.error('❌ Payment not succeeded:', paymentIntent?.status);
+        this.paymentErrors = 'Payment confirmation failed. Please try again.';
+        this.isProcessingPayment = false;
+      }
+    } catch (error) {
+      console.error('❌ Error during frontend payment confirmation:', error);
+      this.paymentErrors = 'Payment confirmation failed. Please try again.';
+      this.isProcessingPayment = false;
+    }
+  }
+
+  /**
+   * Notify backend that payment has been confirmed and create subscription
+   */
+  private async notifyBackendOfPaymentConfirmation(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.customerId || !checkoutResponse.paymentIntentId) {
+      console.error('❌ Missing required data for payment confirmation');
+      this.paymentErrors = 'Payment confirmation failed. Please try again.';
+      this.isProcessingPayment = false;
+      return;
+    }
+
+    try {
+      console.log('🔄 Creating subscription after payment confirmation...');
+      
+      const subscriptionRequest = {
+        customerId: checkoutResponse.customerId,
+        paymentIntentId: checkoutResponse.paymentIntentId,
+        items: this.checkoutItems,
+        currency: this.localizationService.currentCurrency
+      };
+
+      const subscriptionResponse = await this.httpClient.post<CheckoutResponse>(
+        `${environment.apiUrl}/create-subscription`,
+        subscriptionRequest
+      ).toPromise();
+
+      this.isProcessingPayment = false;
+
+      if (subscriptionResponse?.success) {
+        console.log('✅ Subscription created successfully after payment confirmation');
+        this.checkoutComplete = true;
+      } else {
+        console.error('❌ Subscription creation failed:', subscriptionResponse);
+        this.paymentErrors = subscriptionResponse?.message || 'Subscription creation failed. Please contact support.';
+      }
+    } catch (error) {
+      console.error('❌ Error creating subscription after payment confirmation:', error);
+      this.paymentErrors = 'Subscription creation failed. Please contact support.';
+      this.isProcessingPayment = false;
+    }
+  }
+
+  /**
+   * Handle 3D Secure authentication for PaymentIntent
+   */
+  private async handle3DSecureAuthentication(checkoutResponse: CheckoutResponse): Promise<void> {
+    if (!checkoutResponse.paymentIntentClientSecret) {
+      console.error('❌ No payment intent client secret provided for 3DS');
+      this.errorMessage = '3D Secure authentication failed. Please try again.';
+      return;
+    }
+
+    this.isProcessingPayment = true;
+    this.paymentErrors = '';
+
+    try {
+      console.log('🔐 Starting 3D Secure authentication...');
+      
+      // Handle 3D Secure authentication using Stripe
+      const { error, paymentIntent } = await this.stripeService.handle3DSecureAuthentication(
+        checkoutResponse.paymentIntentClientSecret
+      );
+
+      if (error) {
+        console.error('❌ 3D Secure authentication failed:', error);
+        this.paymentErrors = error.message || '3D Secure authentication failed. Please try again.';
+        this.isProcessingPayment = false;
+        return;
+      }
+
+      if (paymentIntent) {
+        console.log('✅ 3D Secure authentication completed, status:', paymentIntent.status);
+        
+        if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded') {
+          // Authentication successful, notify backend
+          console.log('🔄 Payment successful, creating Chargebee subscription...');
+          await this.notifyBackendOfPaymentConfirmation(checkoutResponse);
+        } else {
+          console.error('❌ PaymentIntent still requires action after 3DS:', paymentIntent.status);
+          this.paymentErrors = `Payment authentication incomplete. Status: ${paymentIntent.status}. Please try again.`;
+          this.isProcessingPayment = false;
+        }
+      } else {
+        console.error('❌ No PaymentIntent returned from 3DS authentication');
+        this.paymentErrors = '3D Secure authentication failed. Please try again.';
+        this.isProcessingPayment = false;
+      }
+    } catch (error) {
+      console.error('❌ Error during 3D Secure authentication:', error);
+      this.paymentErrors = '3D Secure authentication failed. Please try again.';
+      this.isProcessingPayment = false;
+    }
   }
 }

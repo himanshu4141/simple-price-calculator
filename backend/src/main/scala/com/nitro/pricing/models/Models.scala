@@ -255,6 +255,7 @@ case class CheckoutResponse(
   salesContactRequired: Boolean = false,
   paymentIntentId: Option[String] = None,
   paymentStatus: Option[String] = None,
+  paymentIntentClientSecret: Option[String] = None,
   portalSessionUrl: Option[String] = None,
   portalSessionId: Option[String] = None
 )
