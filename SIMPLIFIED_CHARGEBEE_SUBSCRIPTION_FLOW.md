@@ -12,7 +12,7 @@ This document presents simplified sequence diagrams for subscription payment flo
 sequenceDiagram
     participant U as User
     participant F as Frontend (Angular)
-    participant B as Backend (Scala)
+    participant B as Backend (Node.js)
     participant S as Stripe API
     participant C as Chargebee API
 
@@ -34,13 +34,14 @@ sequenceDiagram
 
 ---
 
-## 2. Alternative Flow: Take Payment Method First, Then Create Subscription
+
+## 2. Alternative Flow: Take Payment Method First, Then Create Subscription *(Untested)*
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant F as Frontend (Angular)
-    participant B as Backend (Scala)
+    participant B as Backend (Node.js)
     participant S as Stripe API
     participant C as Chargebee API
 
